@@ -32,3 +32,8 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+#data
+data/
+/docs/WorkInProgress/.$data.drawio.bkp
+/docs/WorkInProgress/.$data.drawio.dtmp
