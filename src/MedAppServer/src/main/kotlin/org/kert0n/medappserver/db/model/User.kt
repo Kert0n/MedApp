@@ -1,21 +1,32 @@
 package org.kert0n.medappserver.db.model
 
 import jakarta.persistence.*
-import org.jetbrains.annotations.NotNull
+import jakarta.validation.constraints.NotNull
 import java.util.*
 
 @Entity
-@Table(name = "users")
+@Table(
+    name = "users",
+    indexes = [
+        Index(name = "ix_users_hashed_key", columnList = "hashed_key", unique = true)
+    ]
+)
 class User(
     @Id
+    @Column(name = "id", nullable = false)
     var id: UUID = UUID.randomUUID(),
     @NotNull
-    @Column(nullable = false)
+    @Column(name = "hashed_key", nullable = false)
     var hashedKey: String,
     @ManyToMany(fetch = FetchType.LAZY)
-    var users: MutableSet<Medbox> = mutableSetOf(),
-    @OneToMany(fetch = FetchType.LAZY)
-    var myUses:MutableSet<Uses> = mutableSetOf()
+    @JoinTable(
+        name = "user_medboxes",
+        joinColumns = [JoinColumn(name = "user_id")],
+        inverseJoinColumns = [JoinColumn(name = "medbox_id")]
+    )
+    var medboxes: MutableSet<Medbox> = mutableSetOf(),
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    var myUses: MutableSet<Uses> = mutableSetOf()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

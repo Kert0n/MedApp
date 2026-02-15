@@ -7,8 +7,9 @@ import java.util.*
 @Table(name = "medboxes")
 class Medbox(
     @Id
+    @Column(name = "id", nullable = false)
     var id: UUID = UUID.randomUUID(),
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(mappedBy = "medboxes", fetch = FetchType.LAZY)
     var users: MutableSet<User> = mutableSetOf()
 ) {
     override fun equals(other: Any?): Boolean {

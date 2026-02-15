@@ -9,11 +9,6 @@ import java.util.*
 @Table(
     name = "drugs", indexes = [
         Index(
-            name = "ix_drugs_drug_id",
-            columnList = "drug_id",
-            unique = true
-        ),
-        Index(
             name = "ix_drugs_name",
             columnList = "name"
         ),
@@ -64,7 +59,8 @@ open class VidalDrug(
     open var category: String? = null,
 
     @Size(max = 300)
-    @Column(name = "manufacturer", length = 300)
+    @NotNull
+    @Column(name = "manufacturer", nullable = false, length = 300)
     open var manufacturer: String,
 
     @Size(max = 100)
