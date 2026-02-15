@@ -20,13 +20,13 @@ class User(
     var hashedKey: String,
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-        name = "user_medboxes",
+        name = "user_med_kits",
         joinColumns = [JoinColumn(name = "user_id")],
-        inverseJoinColumns = [JoinColumn(name = "medbox_id")]
+        inverseJoinColumns = [JoinColumn(name = "med_kit_id")]
     )
-    var medboxes: MutableSet<Medbox> = mutableSetOf(),
+    var medKits: MutableSet<MedKit> = mutableSetOf(),
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    var myUses: MutableSet<Uses> = mutableSetOf()
+    var usings: MutableSet<Using> = mutableSetOf()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
