@@ -2,31 +2,42 @@ package org.kert0n.medappserver.db.model
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
+import jakarta.persistence.Table
 import jakarta.validation.constraints.NotNull
-import org.springframework.context.annotation.Description
 import java.util.UUID
 
 @Entity
+@Table(
+    name = "user_drugs",
+    indexes = [
+        Index(name = "ix_user_drugs_name", columnList = "name")
+    ]
+)
 class Drug (
     @Id
+    @Column(name = "id", nullable = false)
     var id: UUID = UUID.randomUUID(),
     @NotNull
-    @Column(nullable = false)
+    @Column(name = "name", nullable = false)
     var name: String,
     @NotNull
-    @Column(nullable = false)
+    @Column(name = "quantity", nullable = false)
     var quantity: Double,
     @NotNull
-    @Column(nullable = false)
+    @Column(name = "quantity_unit", nullable = false)
     var quantityUnit: String,
+    @Column(name = "form_type")
     var formType: String?,
+    @Column(name = "category")
     var category: String?,
+    @Column(name = "manufacturer")
     var manufacturer: String?,
+    @Column(name = "country")
     var country: String?,
-    var description: String? ,
+    @Column(name = "description")
+    var description: String?,
 
     ){
     override fun equals(other: Any?): Boolean {
