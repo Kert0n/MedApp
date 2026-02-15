@@ -2,8 +2,11 @@ package org.kert0n.medappserver.db.model
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
 import jakarta.persistence.Id
 import jakarta.persistence.Index
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import jakarta.validation.constraints.NotNull
 import java.util.UUID
@@ -26,6 +29,9 @@ class Drug (
     @Column(name = "quantity", nullable = false)
     var quantity: Double,
     @NotNull
+    @Column(name = "projected_quantity", nullable = false)
+    var projectedQuantity: Double,
+    @NotNull
     @Column(name = "quantity_unit", nullable = false)
     var quantityUnit: String,
     @Column(name = "form_type")
@@ -38,6 +44,10 @@ class Drug (
     var country: String?,
     @Column(name = "description")
     var description: String?,
+    @ManyToOne(fetch = FetchType.LAZY)
+    val medKit: MedKit,
+    @OneToMany(mappedBy = "drug",fetch = FetchType.LAZY)
+    val usings: MutableSet<Using> = mutableSetOf(),
 
     ){
     override fun equals(other: Any?): Boolean {

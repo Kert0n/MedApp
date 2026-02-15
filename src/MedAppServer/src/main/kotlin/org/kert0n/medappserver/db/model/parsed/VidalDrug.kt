@@ -7,7 +7,7 @@ import java.util.*
 
 @Entity
 @Table(
-    name = "drugs", indexes = [
+    name = "parsed_drugs", indexes = [
         Index(
             name = "ix_drugs_name",
             columnList = "name"

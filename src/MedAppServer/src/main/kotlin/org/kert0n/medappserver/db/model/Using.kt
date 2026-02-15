@@ -3,15 +3,16 @@ package org.kert0n.medappserver.db.model
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
 import java.io.Serializable
+import java.time.Instant
 import java.util.*
 
 
 @Entity
-@Table(name = "uses")
-class Uses(
+@Table(name = "usings")
+class Using(
 
     @EmbeddedId
-    var usesKey: UsesKey = UsesKey(),
+    var usingKey: UsingKey = UsingKey(),
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("userId")
     @JoinColumn(name = "user_id")
@@ -22,24 +23,28 @@ class Uses(
     var drug: Drug,
     @NotNull
     @Column(name = "pattern", nullable = false)
-    var pattern: String
+    var pattern: String,
+    @NotNull
+    @Column(name = "created_at", nullable = false)
+    var createdAt: Instant = Instant.now(),
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as Uses
+        other as Using
 
-        return usesKey == other.usesKey
+        return usingKey == other.usingKey
     }
 
     override fun hashCode(): Int {
-        return usesKey.hashCode()
+        return usingKey.hashCode()
     }
 }
 
+@Suppress("JpaDataSourceORMInspection")
 @Embeddable
-class UsesKey(
+class UsingKey(
     @Column(name = "user_id")
     var userId: UUID = UUID(0, 0),
     @Column(name = "drug_id")
@@ -49,7 +54,7 @@ class UsesKey(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as UsesKey
+        other as UsingKey
 
         return userId == other.userId && drugId == other.drugId
     }
