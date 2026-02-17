@@ -8,5 +8,4 @@ import java.util.UUID
 interface UserRepository: JpaRepository<User, UUID> {
     fun findByMedKitsId(medId: UUID): List<User>
     fun findByUsingsDrugId(drugId: UUID): List<User>
-
 }

@@ -2,7 +2,11 @@ package org.kert0n.medappserver.db.model
 
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
+import org.springframework.security.core.GrantedAuthority
+import org.springframework.security.core.userdetails.UserDetails
+import java.security.SecureRandom
 import java.util.*
+import kotlin.io.encoding.Base64
 
 @Entity
 @Table(
@@ -27,7 +31,7 @@ class User(
     var medKits: MutableSet<MedKit> = mutableSetOf(),
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     var usings: MutableSet<Using> = mutableSetOf()
-) {
+) : UserDetails {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -40,4 +44,26 @@ class User(
     override fun hashCode(): Int {
         return id.hashCode()
     }
+
+    override fun getAuthorities(): Collection<GrantedAuthority> {
+        return emptyList()
+    }
+
+    override fun getPassword(): String {
+        return hashedKey
+    }
+
+    override fun getUsername(): String {
+        return id.toString()
+    }
+
+//
+//    override fun getAuthorities(): Collection<GrantedAuthority?>? = emptyList()
+//
+//    override fun getPassword(): String? = hashedKey
+//
+//    override fun getUsername(): String? = id.toString()
 }
+
+
+
