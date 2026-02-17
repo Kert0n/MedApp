@@ -9,8 +9,8 @@ import java.security.Principal
 @RequestMapping("/med-kit")
 class MedBoxController {
     @GetMapping
-    fun getAll(principal: Principal) {
-        principal.name
+    fun getAll(principal: Principal): String {
+        return principal.name
 
     }
 }
