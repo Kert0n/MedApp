@@ -6,7 +6,6 @@ import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.MedKitRepository
 import org.kert0n.medappserver.db.repository.UserRepository
 import org.slf4j.LoggerFactory
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,8 +29,9 @@ class MedKitService(
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
         
         val medKit = MedKit()
-        // Only add to owning side (User has @JoinTable)
-        user.medKits.add(medKit)
+        
+        // Используем helper method для правильной синхронизации обеих сторон
+        user.addMedKit(medKit)
         
         return medKitRepository.save(medKit)
     }
@@ -73,8 +73,8 @@ class MedKitService(
             return medKit
         }
         
-        // Only add to owning side (User has @JoinTable)
-        user.medKits.add(medKit)
+        // Используем helper method для правильной синхронизации обеих сторон
+        user.addMedKit(medKit)
         
         return medKitRepository.save(medKit)
     }
@@ -93,10 +93,11 @@ class MedKitService(
             drug.usings.removeIf { it.user.id == userId }
         }
         
-        // Only remove from owning side (User has @JoinTable)
-        user.medKits.remove(medKit)
+        // Используем helper method для правильной синхронизации обеих сторон
+        // КРИТИЧНО: обе стороны должны быть обновлены для корректной проверки isEmpty() ниже
+        user.removeMedKit(medKit)
         
-        // If no users left or if last user is leaving, delete the medkit
+        // Теперь проверка isEmpty() будет корректной, т.к. мы обновили обе стороны
         if (medKit.users.isEmpty()) {
             logger.debug("No users left in medkit {}, deleting", medKitId)
             medKitRepository.delete(medKit)
