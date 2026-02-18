@@ -3,13 +3,36 @@
 package org.kert0n.medappserver.db.repository
 
 import org.kert0n.medappserver.db.model.Drug
-import org.kert0n.medappserver.db.model.Using
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface DrugRepository: JpaRepository<Drug, UUID> {
+    
+    // Derived query - JPA handles this efficiently
     fun findAllByMedKitId(medKitId: UUID): List<Drug>
-    fun findByUsingsUserId(userId: UUID): List<Drug>
+    
+    // JPQL with JOIN FETCH - more explicit control over fetching
+    @Query("""
+        SELECT DISTINCT d FROM Drug d 
+        LEFT JOIN FETCH d.usings u
+        LEFT JOIN FETCH u.user
+        WHERE u.user.id = :userId
+    """)
+    fun findByUsingsUserId(@Param("userId") userId: UUID): List<Drug>
 
-    fun findByIdAndUsingsUserId(drugId: UUID,userId:UUID): Drug?
+    // JPQL for complex join condition
+    @Query("""
+        SELECT d FROM Drug d 
+        JOIN d.medKit mk
+        JOIN mk.users u
+        WHERE d.id = :drugId AND u.id = :userId
+    """)
+    fun findByIdAndMedKitUsersId(@Param("drugId") drugId: UUID, @Param("userId") userId: UUID): Drug?
+    
+    // EntityGraph for simple eager loading
+    @EntityGraph(attributePaths = ["usings"])
+    override fun findById(id: UUID): java.util.Optional<Drug>
 }
