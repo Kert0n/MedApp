@@ -30,6 +30,25 @@ class User(
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     var usings: MutableSet<Using> = mutableSetOf()
 ) : UserDetails {
+    
+    /**
+     * Helper method для правильной синхронизации ManyToMany связи
+     * Обновляет ОБЕ стороны для консистентности в памяти
+     */
+    fun addMedKit(medKit: MedKit) {
+        this.medKits.add(medKit)
+        medKit.users.add(this)
+    }
+    
+    /**
+     * Helper method для правильной синхронизации ManyToMany связи
+     * Обновляет ОБЕ стороны для консистентности в памяти
+     */
+    fun removeMedKit(medKit: MedKit) {
+        this.medKits.remove(medKit)
+        medKit.users.remove(this)
+    }
+    
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -61,6 +80,3 @@ data class UserDto(
     val id: UUID,
     val medKits: Set<MedKitDTO>
 )
-
-
-
