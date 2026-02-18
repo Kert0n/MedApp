@@ -27,3 +27,7 @@ class MedKit(
         return id.hashCode()
     }
 }
+
+data class MedKitDTO(
+    val drugs: Set<DrugDTO>
+)

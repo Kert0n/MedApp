@@ -29,9 +29,6 @@ class Drug (
     @Column(name = "quantity", nullable = false)
     var quantity: Double,
     @NotNull
-    @Column(name = "projected_quantity", nullable = false)
-    var projectedQuantity: Double,
-    @NotNull
     @Column(name = "quantity_unit", nullable = false)
     var quantityUnit: String,
     @Column(name = "form_type")
@@ -63,3 +60,30 @@ class Drug (
         return id.hashCode()
     }
 }
+
+data class DrugDTO(
+    val id: UUID,
+    val name: String,
+    val quantity: Double,
+    val plannedQuantity: Double,
+    val quantityUnit: String,
+    val formType: String,
+    val category: String,
+    val manufacturer: String,
+    val country: String,
+    val description: String,
+    val medKit:UUID,
+)
+
+data class DrugPostDTO(
+    val name: String,
+    val quantity: Double,
+    val quantityUnit: String,
+    val formType: String,
+    val category: String,
+    val manufacturer: String,
+    val country: String,
+    val description: String,
+    val owner:UUID,
+)
+
