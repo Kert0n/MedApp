@@ -119,9 +119,8 @@ class DrugService(
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "User does not have access to target medkit")
         }
         
-        // Remove from old medkit and add to new one
-        drug.medKit.drugs.remove(drug)
-        targetMedKit.drugs.add(drug)
+        // Actually change the drug's medKit reference
+        drug.medKit = targetMedKit
         
         return drugRepository.save(drug)
     }
