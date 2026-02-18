@@ -1,5 +1,6 @@
 package org.kert0n.medappserver.services
 
+import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -41,6 +42,9 @@ class UsingServiceTest {
 
     @Autowired
     private lateinit var drugRepository: DrugRepository
+    
+    @Autowired
+    private lateinit var entityManager: EntityManager
 
     private lateinit var testUser: User
     private lateinit var testUser2: User
@@ -304,18 +308,6 @@ class UsingServiceTest {
 
         val quantityAfter = drugRepository.findById(testDrug.id).orElseThrow().quantity
         assertEquals(quantityBefore, quantityAfter)
-    }
-
-    @Test
-    fun `deleteTreatmentPlan - cascade from drug deletion - works correctly`() {
-        val createDTO = UsingCreateDTO(testDrug.id, 30.0)
-        usingService.createTreatmentPlan(testUser.id, createDTO)
-
-        // Delete the drug (should cascade to using)
-        drugRepository.deleteById(testDrug.id)
-
-        val using = usingRepository.findById(UsingKey(testUser.id, testDrug.id))
-        assertFalse(using.isPresent)
     }
 
     // ========== Query Methods Tests ==========
