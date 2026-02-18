@@ -56,7 +56,7 @@ class Drug (
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "med_kit_id", nullable = false)
-    val medKit: MedKit,
+    var medKit: MedKit,
     
     @OneToMany(mappedBy = "drug", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
     val usings: MutableSet<Using> = mutableSetOf(),
