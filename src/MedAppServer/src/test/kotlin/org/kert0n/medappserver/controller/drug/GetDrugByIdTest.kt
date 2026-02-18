@@ -1,32 +1,31 @@
 package org.kert0n.medappserver.controller.drug
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.kert0n.medappserver.controller.DrugController
-import org.kert0n.medappserver.controller.TestSecurityConfig
 import org.kert0n.medappserver.db.model.*
-import org.kert0n.medappserver.services.DrugService
-import org.kert0n.medappserver.services.UsingService
-import org.kert0n.medappserver.services.VidalDrugService
-import org.kert0n.medappserver.testutil.drugBuilder
-import org.kert0n.medappserver.testutil.medKitBuilder
-import org.kert0n.medappserver.testutil.userBuilder
-import org.mockito.kotlin.any
-import org.mockito.kotlin.whenever
+import org.kert0n.medappserver.db.repository.*
+import org.kert0n.medappserver.testutil.*
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.mock.mockito.MockBean
-import org.springframework.context.annotation.Import
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
-import org.springframework.web.server.ResponseStatusException
+import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
-@WebMvcTest(DrugController::class)
-@Import(TestSecurityConfig::class)
+/**
+ * Tests for GET /drug/{id} endpoint
+ * Minimum 6 tests covering: happy path, not found, forbidden, invalid input, edge cases
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Transactional
 class GetDrugByIdTest {
 
     @Autowired
@@ -35,69 +34,69 @@ class GetDrugByIdTest {
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
-    @MockBean
-    private lateinit var drugService: DrugService
+    @Autowired
+    private lateinit var userRepository: UserRepository
 
-    @MockBean
-    private lateinit var usingService: UsingService
+    @Autowired
+    private lateinit var medKitRepository: MedKitRepository
 
-    @MockBean
-    private lateinit var vidalDrugService: VidalDrugService
+    @Autowired
+    private lateinit var drugRepository: DrugRepository
 
-    @Test
-    fun `GET drug by ID - success - returns drug when user has access`() {
-        // Arrange
-        val userId = UUID.randomUUID()
-        val drugId = UUID.randomUUID()
-        val medKit = medKitBuilder().build()
-        val drug = drugBuilder(medKit)
-            .withId(drugId)
+    private lateinit var testUser: User
+    private lateinit var testMedKit: MedKit
+    private lateinit var testDrug: Drug
+    private lateinit var otherUser: User
+
+    @BeforeEach
+    fun setup() {
+        // Create test user
+        testUser = userBuilder().build()
+        userRepository.save(testUser)
+
+        // Create other user (for access control tests)
+        otherUser = userBuilder().build()
+        userRepository.save(otherUser)
+
+        // Create medkit for test user
+        testMedKit = medKitBuilder().build()
+        testUser.addMedKit(testMedKit)
+        medKitRepository.save(testMedKit)
+        userRepository.save(testUser)
+
+        // Create test drug
+        testDrug = drugBuilder(testMedKit)
             .withName("Aspirin")
             .withQuantity(50.0)
             .build()
-        
-        val drugDTO = DrugDTO(
-            id = drug.id,
-            name = drug.name,
-            quantity = drug.quantity,
-            quantityUnit = drug.quantityUnit,
-            medKitId = medKit.id,
-            formType = drug.formType,
-            category = drug.category,
-            manufacturer = drug.manufacturer,
-            country = drug.country,
-            description = drug.description
-        )
+        drugRepository.save(testDrug)
+    }
 
-        whenever(drugService.findByIdForUser(drugId, userId)).thenReturn(drug)
-        whenever(drugService.toDrugDTO(drug)).thenReturn(drugDTO)
-
+    @Test
+    fun `GET drug by ID - success - returns drug when user has access`() {
         // Act & Assert
         mockMvc.perform(
-            get("/drug/{id}", drugId)
-                .with(user(userId.toString()))
+            get("/drug/{id}", testDrug.id)
+                .with(user(testUser.hashedKey))
                 .contentType(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isOk)
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.id").value(drugId.toString()))
+            .andExpect(jsonPath("$.id").value(testDrug.id.toString()))
             .andExpect(jsonPath("$.name").value("Aspirin"))
             .andExpect(jsonPath("$.quantity").value(50.0))
+            .andExpect(jsonPath("$.medKitId").value(testMedKit.id.toString()))
     }
 
     @Test
     fun `GET drug by ID - not found - returns 404 when drug doesn't exist`() {
         // Arrange
-        val userId = UUID.randomUUID()
-        val drugId = UUID.randomUUID()
-
-        whenever(drugService.findByIdForUser(drugId, userId))
-            .thenThrow(ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Drug not found"))
+        val nonExistentId = UUID.randomUUID()
 
         // Act & Assert
         mockMvc.perform(
-            get("/drug/{id}", drugId)
-                .with(user(userId.toString()))
+            get("/drug/{id}", nonExistentId)
+                .with(user(testUser.hashedKey))
                 .contentType(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isNotFound)
@@ -105,17 +104,10 @@ class GetDrugByIdTest {
 
     @Test
     fun `GET drug by ID - forbidden - returns 403 when user doesn't have access`() {
-        // Arrange
-        val userId = UUID.randomUUID()
-        val drugId = UUID.randomUUID()
-
-        whenever(drugService.findByIdForUser(drugId, userId))
-            .thenThrow(ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Access denied"))
-
-        // Act & Assert
+        // Act & Assert - otherUser trying to access testUser's drug
         mockMvc.perform(
-            get("/drug/{id}", drugId)
-                .with(user(userId.toString()))
+            get("/drug/{id}", testDrug.id)
+                .with(user(otherUser.hashedKey))
                 .contentType(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isForbidden)
@@ -124,13 +116,12 @@ class GetDrugByIdTest {
     @Test
     fun `GET drug by ID - invalid ID format - returns 400`() {
         // Arrange
-        val userId = UUID.randomUUID()
         val invalidId = "not-a-uuid"
 
         // Act & Assert
         mockMvc.perform(
             get("/drug/{id}", invalidId)
-                .with(user(userId.toString()))
+                .with(user(testUser.hashedKey))
                 .contentType(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isBadRequest)
@@ -139,11 +130,7 @@ class GetDrugByIdTest {
     @Test
     fun `GET drug by ID - drug with all fields populated - returns complete data`() {
         // Arrange
-        val userId = UUID.randomUUID()
-        val drugId = UUID.randomUUID()
-        val medKit = medKitBuilder().build()
-        val drug = drugBuilder(medKit)
-            .withId(drugId)
+        val completeDrug = drugBuilder(testMedKit)
             .withName("Paracetamol 500mg")
             .withQuantity(250.5)
             .withQuantityUnit("tablets")
@@ -153,31 +140,16 @@ class GetDrugByIdTest {
             .withCountry("Germany")
             .withDescription("For headaches and fever")
             .build()
-        
-        val drugDTO = DrugDTO(
-            id = drug.id,
-            name = drug.name,
-            quantity = drug.quantity,
-            quantityUnit = drug.quantityUnit,
-            medKitId = medKit.id,
-            formType = drug.formType,
-            category = drug.category,
-            manufacturer = drug.manufacturer,
-            country = drug.country,
-            description = drug.description
-        )
-
-        whenever(drugService.findByIdForUser(drugId, userId)).thenReturn(drug)
-        whenever(drugService.toDrugDTO(drug)).thenReturn(drugDTO)
+        drugRepository.save(completeDrug)
 
         // Act & Assert
         mockMvc.perform(
-            get("/drug/{id}", drugId)
-                .with(user(userId.toString()))
+            get("/drug/{id}", completeDrug.id)
+                .with(user(testUser.hashedKey))
                 .contentType(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.id").value(drugId.toString()))
+            .andExpect(jsonPath("$.id").value(completeDrug.id.toString()))
             .andExpect(jsonPath("$.name").value("Paracetamol 500mg"))
             .andExpect(jsonPath("$.quantity").value(250.5))
             .andExpect(jsonPath("$.quantityUnit").value("tablets"))
@@ -191,11 +163,7 @@ class GetDrugByIdTest {
     @Test
     fun `GET drug by ID - drug with minimal fields - returns data with nulls`() {
         // Arrange
-        val userId = UUID.randomUUID()
-        val drugId = UUID.randomUUID()
-        val medKit = medKitBuilder().build()
-        val drug = drugBuilder(medKit)
-            .withId(drugId)
+        val minimalDrug = drugBuilder(testMedKit)
             .withName("Generic Med")
             .withQuantity(10.0)
             .withFormType(null)
@@ -204,31 +172,16 @@ class GetDrugByIdTest {
             .withCountry(null)
             .withDescription(null)
             .build()
-        
-        val drugDTO = DrugDTO(
-            id = drug.id,
-            name = drug.name,
-            quantity = drug.quantity,
-            quantityUnit = drug.quantityUnit,
-            medKitId = medKit.id,
-            formType = null,
-            category = null,
-            manufacturer = null,
-            country = null,
-            description = null
-        )
-
-        whenever(drugService.findByIdForUser(drugId, userId)).thenReturn(drug)
-        whenever(drugService.toDrugDTO(drug)).thenReturn(drugDTO)
+        drugRepository.save(minimalDrug)
 
         // Act & Assert
         mockMvc.perform(
-            get("/drug/{id}", drugId)
-                .with(user(userId.toString()))
+            get("/drug/{id}", minimalDrug.id)
+                .with(user(testUser.hashedKey))
                 .contentType(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.id").value(drugId.toString()))
+            .andExpect(jsonPath("$.id").value(minimalDrug.id.toString()))
             .andExpect(jsonPath("$.name").value("Generic Med"))
             .andExpect(jsonPath("$.quantity").value(10.0))
             .andExpect(jsonPath("$.formType").doesNotExist())
