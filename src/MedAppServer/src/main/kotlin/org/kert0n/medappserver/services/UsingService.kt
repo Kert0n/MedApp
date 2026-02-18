@@ -6,7 +6,7 @@ import org.kert0n.medappserver.db.model.UsingKey
 import org.kert0n.medappserver.db.repository.DrugRepository
 import org.kert0n.medappserver.db.repository.UsingRepository
 import org.kert0n.medappserver.db.repository.UserRepository
-import org.springframework.data.repository.findByIdOrNull
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
@@ -19,18 +19,24 @@ class UsingService(
     private val drugRepository: DrugRepository,
     private val userRepository: UserRepository
 ) {
+    
+    private val logger = LoggerFactory.getLogger(UsingService::class.java)
 
     /**
      * Get all treatment plans (usings) for a user
      */
     fun getAllUsingsForUser(userId: UUID): List<Using> {
-        return usingRepository.findAllByUserId(userId)
+        logger.debug("Getting all treatment plans for user")
+        val usings = usingRepository.findAllByUserId(userId)
+        logger.debug("Found {} treatment plans for user", usings.size)
+        return usings
     }
 
     /**
      * Get all usings for a specific drug
      */
     fun getUsingsForDrug(drugId: UUID): List<Using> {
+        logger.debug("Getting all usings for drug")
         return usingRepository.findAllByDrugId(drugId)
     }
 

@@ -6,6 +6,7 @@ import org.kert0n.medappserver.db.repository.DrugRepository
 import org.kert0n.medappserver.db.repository.MedKitRepository
 import org.kert0n.medappserver.db.repository.UserRepository
 import org.kert0n.medappserver.db.repository.UsingRepository
+import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -19,12 +20,16 @@ class MedKitService(
     private val drugRepository: DrugRepository,
     private val usingRepository: UsingRepository
 ) {
+    
+    private val logger = LoggerFactory.getLogger(MedKitService::class.java)
 
     /**
      * Get all medicine kits for a user
      */
     fun getAllMedKitsForUser(userId: UUID): List<MedKitDTO> {
+        logger.debug("Getting all medicine kits for user")
         val medKits = medKitRepository.findByUsersId(userId)
+        logger.debug("Found {} medicine kits for user", medKits.size)
         return medKits.map { it.toDTO() }
     }
 
@@ -32,6 +37,7 @@ class MedKitService(
      * Get a specific medicine kit by ID (with access check)
      */
     fun getMedKitById(userId: UUID, medKitId: UUID): MedKitDTO {
+        logger.debug("Getting medicine kit by ID")
         val medKit = medKitRepository.findByIdAndUserId(medKitId, userId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Medicine kit not found or access denied")
         return medKit.toDTO()
@@ -42,6 +48,7 @@ class MedKitService(
      */
     @Transactional
     fun createMedKit(userId: UUID): MedKitDTO {
+        logger.debug("Creating new medicine kit for user")
         // User is already authenticated, so we can safely get a reference
         val user = userRepository.getReferenceById(userId)
         
@@ -49,6 +56,7 @@ class MedKitService(
         medKit.users.add(user)
         
         val savedMedKit = medKitRepository.save(medKit)
+        logger.info("Medicine kit created successfully")
         
         return savedMedKit.toDTO()
     }
@@ -58,12 +66,14 @@ class MedKitService(
      */
     @Transactional
     fun deleteMedKit(userId: UUID, medKitId: UUID, targetMedKitId: UUID? = null) {
+        logger.debug("Deleting medicine kit")
         val medKit = medKitRepository.findByIdAndUserId(medKitId, userId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Medicine kit not found or access denied")
         
         val drugs = drugRepository.findAllByMedKitId(medKitId)
         
         if (targetMedKitId != null) {
+            logger.debug("Moving {} drugs to target medicine kit", drugs.size)
             // Move drugs to target medicine kit
             val targetMedKit = medKitRepository.findByIdAndUserId(targetMedKitId, userId)
                 ?: throw ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to target medicine kit")
