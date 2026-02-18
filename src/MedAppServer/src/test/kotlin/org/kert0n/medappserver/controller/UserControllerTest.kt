@@ -1,15 +1,16 @@
 package org.kert0n.medappserver.controller
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.ninjasquad.springmockk.MockkBean
+import io.mockk.every
+import io.mockk.verify
+import io.mockk.any
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.services.MedKitService
 import org.kert0n.medappserver.services.UserService
 import org.kert0n.medappserver.testutil.*
-import org.mockito.kotlin.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.mock.mockito.MockBean
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -30,9 +31,9 @@ class UserControllerTest {
     private lateinit var mockMvc: MockMvc
     @Autowired
     private lateinit var objectMapper: ObjectMapper
-    @MockBean
+    @MockkBean
     private lateinit var userService: UserService
-    @MockBean
+    @MockkBean
     private lateinit var medKitService: MedKitService
     // Test 1: Authenticated user - returns complete user data
     @Test
