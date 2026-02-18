@@ -22,8 +22,11 @@ class Using(
     @JoinColumn(name = "drug_id")
     var drug: Drug,
     @NotNull
-    @Column(name = "pattern", nullable = false)
-    var pattern: String,
+    @Column(name = "planned_amount", nullable = false)
+    var plannedAmount: Double,
+    @NotNull
+    @Column(name = "last_modified", nullable = false)
+    var lastUsed: Instant,
     @NotNull
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
@@ -63,3 +66,4 @@ class UsingKey(
         return Objects.hash(userId, drugId)
     }
 }
+

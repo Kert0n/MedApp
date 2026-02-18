@@ -10,4 +10,6 @@ import java.util.UUID
 interface DrugRepository: JpaRepository<Drug, UUID> {
     fun findAllByMedKitId(medKitId: UUID): List<Drug>
     fun findByUsingsUserId(userId: UUID): List<Drug>
+
+    fun findByIdAndUsingsUserId(drugId: UUID,userId:UUID): Drug?
 }
