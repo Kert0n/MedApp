@@ -31,7 +31,7 @@ class DrugService(
     @Transactional(readOnly = true)
     fun findByIdForUser(drugId: UUID, userId: UUID): Drug {
         logger.debug("Finding drug {} for user {}", drugId, userId)
-        return drugRepository.findByIdAndMedKitUserId(drugId, userId)
+        return drugRepository.findByIdAndMedKitUsersId(drugId, userId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found or access denied")
     }
 
@@ -151,8 +151,8 @@ class DrugService(
 
     @Transactional(readOnly = true)
     fun getAvailableQuantity(drugId: UUID): Pair<Double, Double> {
-        val drug = drugRepository.findByIdWithUsings(drugId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found")
+        val drug = drugRepository.findById(drugId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found") }
         
         val planned = getPlannedQuantity(drug)
         return drug.quantity to planned

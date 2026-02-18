@@ -15,12 +15,11 @@ class VidalDrugService(
         if (searchTerm.isBlank()) {
             return emptyList()
         }
-        return vidalDrugRepository.fuzzySearchByName(searchTerm.trim())
-            .take(limit)
+        return vidalDrugRepository.fuzzySearchByName(searchTerm.trim(), limit)
     }
     
     fun findById(id: UUID): VidalDrug? {
-        return vidalDrugRepository.findByIdWithDetails(id)
+        return vidalDrugRepository.findById(id).orElse(null)
     }
     
     fun getAll(): List<VidalDrug> {

@@ -26,11 +26,11 @@ class MedKitService(
     fun createNew(userId: UUID): MedKit {
         logger.debug("Creating new medkit for user: {}", userId)
         
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        val user = userRepository.findById(userId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
         
         val medKit = MedKit()
-        medKit.users.add(user)
+        // Only add to owning side (User has @JoinTable)
         user.medKits.add(medKit)
         
         return medKitRepository.save(medKit)
@@ -39,8 +39,8 @@ class MedKitService(
     @Transactional(readOnly = true)
     fun findById(medKitId: UUID): MedKit {
         logger.debug("Finding medkit by ID: {}", medKitId)
-        return medKitRepository.findByIdOrNull(medKitId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "MedKit not found")
+        return medKitRepository.findById(medKitId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "MedKit not found") }
     }
 
     @Transactional(readOnly = true)
@@ -65,15 +65,15 @@ class MedKitService(
         logger.debug("Adding user {} to medkit {}", userId, medKitId)
         
         val medKit = findById(medKitId)
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        val user = userRepository.findById(userId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
         
         if (medKit.users.contains(user)) {
             logger.warn("User {} already has access to medkit {}", userId, medKitId)
             return medKit
         }
         
-        medKit.users.add(user)
+        // Only add to owning side (User has @JoinTable)
         user.medKits.add(medKit)
         
         return medKitRepository.save(medKit)
@@ -84,8 +84,8 @@ class MedKitService(
         logger.debug("Removing user {} from medkit {}, deleteAllDrugs: {}", userId, medKitId, deleteAllDrugs)
         
         val medKit = findByIdForUser(medKitId, userId)
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        val user = userRepository.findById(userId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
         
         // Remove user's treatment plans for drugs in this medkit
         val drugsInMedKit = drugService.findAllByMedKit(medKitId)
@@ -93,7 +93,7 @@ class MedKitService(
             drug.usings.removeIf { it.user.id == userId }
         }
         
-        medKit.users.remove(user)
+        // Only remove from owning side (User has @JoinTable)
         user.medKits.remove(medKit)
         
         // If no users left or if last user is leaving, delete the medkit

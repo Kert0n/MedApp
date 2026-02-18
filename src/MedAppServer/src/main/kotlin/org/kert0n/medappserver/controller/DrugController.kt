@@ -1,5 +1,12 @@
 package org.kert0n.medappserver.controller
 
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotNull
@@ -13,6 +20,7 @@ import java.util.*
 
 @RestController
 @RequestMapping("/drug")
+@Tag(name = "Drug Management", description = "APIs for managing drugs in medicine kits")
 class DrugController(
     private val drugService: DrugService,
     private val usingService: UsingService,
@@ -22,7 +30,15 @@ class DrugController(
     private val logger = LoggerFactory.getLogger(DrugController::class.java)
 
     @GetMapping("/{id}")
-    fun getDrug(authentication: Authentication, @PathVariable id: UUID): DrugDTO {
+    @Operation(summary = "Get drug by ID", description = "Retrieves a drug by its ID if the user has access")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Drug found"),
+        ApiResponse(responseCode = "404", description = "Drug not found or access denied", content = [Content()])
+    ])
+    fun getDrug(
+        authentication: Authentication,
+        @Parameter(description = "Drug ID") @PathVariable id: UUID
+    ): DrugDTO {
         logger.debug("GET /drug/{} by user {}", id, authentication.userId)
         val drug = drugService.findByIdForUser(id, authentication.userId)
         return drugService.toDrugDTO(drug)
@@ -30,16 +46,33 @@ class DrugController(
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    fun createDrug(authentication: Authentication, @Valid @RequestBody drugDTO: DrugCreateDTO): DrugDTO {
+    @Operation(summary = "Create a new drug", description = "Creates a new drug in a medicine kit")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "201", description = "Drug created successfully"),
+        ApiResponse(responseCode = "400", description = "Invalid input", content = [Content()]),
+        ApiResponse(responseCode = "403", description = "User does not have access to the medicine kit", content = [Content()])
+    ])
+    fun createDrug(
+        authentication: Authentication,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Drug details to create")
+        @Valid @RequestBody drugDTO: DrugCreateDTO
+    ): DrugDTO {
         logger.debug("POST /drug by user {}: {}", authentication.userId, drugDTO.name)
         val drug = drugService.create(drugDTO, authentication.userId)
         return drugService.toDrugDTO(drug)
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Update a drug", description = "Updates an existing drug")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Drug updated successfully"),
+        ApiResponse(responseCode = "400", description = "Invalid input", content = [Content()]),
+        ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
+    ])
     fun updateDrug(
         authentication: Authentication,
-        @PathVariable id: UUID,
+        @Parameter(description = "Drug ID") @PathVariable id: UUID,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Drug update details")
         @Valid @RequestBody updateDTO: DrugUpdateDTO
     ): DrugDTO {
         logger.debug("PUT /drug/{} by user {}", id, authentication.userId)
@@ -49,24 +82,37 @@ class DrugController(
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun deleteDrug(authentication: Authentication, @PathVariable id: UUID) {
+    @Operation(summary = "Delete a drug", description = "Deletes a drug from the medicine kit")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "204", description = "Drug deleted successfully"),
+        ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
+    ])
+    fun deleteDrug(
+        authentication: Authentication,
+        @Parameter(description = "Drug ID") @PathVariable id: UUID
+    ) {
         logger.debug("DELETE /drug/{} by user {}", id, authentication.userId)
         drugService.delete(id, authentication.userId)
     }
 
     @GetMapping("/quantity/{id}")
-    fun getDrugQuantityInfo(authentication: Authentication, @PathVariable id: UUID): QuantityInfo {
+    @Operation(summary = "Get drug quantity info", description = "Returns actual, planned, and available quantities")
+    fun getDrugQuantityInfo(
+        authentication: Authentication,
+        @Parameter(description = "Drug ID") @PathVariable id: UUID
+    ): QuantityInfo {
         logger.debug("GET /drug/quantity/{} by user {}", id, authentication.userId)
-        // Verify user has access
         drugService.findByIdForUser(id, authentication.userId)
         val (actual, planned) = drugService.getAvailableQuantity(id)
         return QuantityInfo(actual, planned, actual - planned)
     }
 
     @PutMapping("/consume/{id}")
+    @Operation(summary = "Consume drug", description = "Reduces drug quantity by the consumed amount")
     fun consumeDrug(
         authentication: Authentication,
-        @PathVariable id: UUID,
+        @Parameter(description = "Drug ID") @PathVariable id: UUID,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Consumption details")
         @Valid @RequestBody consumeRequest: ConsumeRequest
     ): DrugDTO {
         logger.debug("PUT /drug/consume/{} by user {}, quantity: {}", id, authentication.userId, consumeRequest.quantity)
@@ -75,9 +121,11 @@ class DrugController(
     }
 
     @PutMapping("/move/{id}")
+    @Operation(summary = "Move drug to another medicine kit", description = "Transfers a drug between medicine kits")
     fun moveDrug(
         authentication: Authentication,
-        @PathVariable id: UUID,
+        @Parameter(description = "Drug ID") @PathVariable id: UUID,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Target medicine kit")
         @Valid @RequestBody moveRequest: MoveDrugRequest
     ): DrugDTO {
         logger.debug("PUT /drug/move/{} to medkit {} by user {}", id, moveRequest.targetMedKitId, authentication.userId)
@@ -86,10 +134,11 @@ class DrugController(
     }
 
     @GetMapping("/template/search")
+    @Operation(summary = "Search drug templates", description = "Fuzzy search for drug templates in the database")
     fun searchDrugTemplates(
         authentication: Authentication,
-        @RequestParam searchTerm: String,
-        @RequestParam(defaultValue = "10") limit: Int
+        @Parameter(description = "Search term") @RequestParam searchTerm: String,
+        @Parameter(description = "Maximum results") @RequestParam(defaultValue = "10") limit: Int
     ): List<DrugTemplateDTO> {
         logger.debug("GET /drug/template/search?searchTerm={}&limit={} by user {}", searchTerm, limit, authentication.userId)
         return vidalDrugService.fuzzySearchByName(searchTerm, limit).map { vd ->
@@ -105,7 +154,11 @@ class DrugController(
     }
 
     @GetMapping("/template/{id}")
-    fun getDrugTemplate(authentication: Authentication, @PathVariable id: UUID): DrugTemplateDTO {
+    @Operation(summary = "Get drug template by ID", description = "Retrieves a drug template from the database")
+    fun getDrugTemplate(
+        authentication: Authentication,
+        @Parameter(description = "Template ID") @PathVariable id: UUID
+    ): DrugTemplateDTO {
         logger.debug("GET /drug/template/{} by user {}", id, authentication.userId)
         val vd = vidalDrugService.findById(id) ?: throw org.springframework.web.server.ResponseStatusException(
             HttpStatus.NOT_FOUND, "Drug template not found"
@@ -121,28 +174,43 @@ class DrugController(
     }
 }
 
+@Schema(description = "Drug quantity information")
 data class QuantityInfo(
+    @Schema(description = "Actual quantity in stock")
     val actualQuantity: Double,
+    @Schema(description = "Total planned quantity across all treatment plans")
     val plannedQuantity: Double,
+    @Schema(description = "Available quantity (actual - planned)")
     val availableQuantity: Double
 )
 
+@Schema(description = "Request to consume a drug")
 data class ConsumeRequest(
     @field:NotNull
     @field:DecimalMin("0.0")
+    @Schema(description = "Quantity to consume", example = "2.0", minimum = "0")
     val quantity: Double
 )
 
+@Schema(description = "Request to move a drug to another medicine kit")
 data class MoveDrugRequest(
     @field:NotNull
+    @Schema(description = "Target medicine kit ID")
     val targetMedKitId: UUID
 )
 
+@Schema(description = "Drug template from the database")
 data class DrugTemplateDTO(
+    @Schema(description = "Template ID")
     val id: UUID,
+    @Schema(description = "Drug name")
     val name: String,
+    @Schema(description = "Form type (e.g., tablet, syrup)")
     val formType: String?,
+    @Schema(description = "Category")
     val category: String?,
+    @Schema(description = "Manufacturer")
     val manufacturer: String?,
+    @Schema(description = "Description")
     val description: String?
 )
