@@ -2,96 +2,171 @@ package org.kert0n.medappserver.controller
 
 import org.kert0n.medappserver.db.model.DrugDTO
 import org.kert0n.medappserver.db.model.DrugPostDTO
-import org.kert0n.medappserver.db.model.Using
-import org.kert0n.medappserver.db.model.UsingKey
-import org.kert0n.medappserver.db.repository.DrugRepository
-import org.kert0n.medappserver.db.repository.UserRepository
+import org.kert0n.medappserver.db.model.parsed.VidalDrug
 import org.kert0n.medappserver.services.DrugService
-import org.kert0n.medappserver.services.UserService
 import org.kert0n.medappserver.services.UsingService
+import org.kert0n.medappserver.services.VidalDrugService
 import org.kert0n.medappserver.services.userId
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
-import org.springframework.web.server.ResponseStatusException
 import java.util.*
 
 @RestController
 @RequestMapping("/drug")
 class DrugController(
-    private val userRepository: UserRepository,
-    private val drugRepository: DrugRepository,
-    private val usingService: UsingService,
     private val drugService: DrugService,
-    private val userService: UserService
+    private val usingService: UsingService,
+    private val vidalDrugService: VidalDrugService
 ) {
 
+    /**
+     * Get a specific drug by ID
+     */
     @GetMapping("/{id}")
     fun getDrug(authentication: Authentication, @PathVariable id: UUID): DrugDTO {
-        val find = drugRepository.findByIdAndUsingsUserId(id, authentication.userId) ?: throw ResponseStatusException(
-            HttpStatus.NOT_FOUND
-        )
+        return drugService.getDrugById(authentication.userId, id)
     }
 
+    /**
+     * Get all drugs for the authenticated user
+     */
+    @GetMapping
+    fun getAllDrugs(authentication: Authentication): List<DrugDTO> {
+        return drugService.getAllDrugsForUser(authentication.userId)
+    }
+
+    /**
+     * Add new drugs to a medicine kit
+     */
     @PostMapping
-    fun postDrugs(authentication: Authentication, drugs: Set<DrugPostDTO>): UUID {
-        val myMedKits = (userRepository.findByIdOrNull(authentication.userId) ?: throw ResponseStatusException(
-            HttpStatus.NOT_FOUND
-        )).medKits.map { it.id }.toSet()
-        val approved = drugs.filter { myMedKits.contains(it.owner) }
-
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addDrugs(authentication: Authentication, @RequestBody drugs: Set<DrugPostDTO>): List<DrugDTO> {
+        return drugs.map { drugService.addDrug(authentication.userId, it) }
     }
 
+    /**
+     * Get drug quantity and planned quantity (lightweight endpoint)
+     */
     @GetMapping("/light/{id}")
-    fun getState(authentication: Authentication, @PathVariable id: UUID): Pair<Double, Double> {
-        val drug = drugRepository.findByIdAndUsingsUserId(id, authentication.userId) ?: throw ResponseStatusException(
-            HttpStatus.NOT_FOUND
+    fun getDrugState(authentication: Authentication, @PathVariable id: UUID): Map<String, Double> {
+        val (quantity, plannedQuantity) = drugService.getDrugState(authentication.userId, id)
+        return mapOf(
+            "quantity" to quantity,
+            "plannedQuantity" to plannedQuantity
         )
-        return drug.quantity to drugService.getPlannedQuantity(drug)
     }
 
-    @PutMapping("/{id}")
-    fun consume(authentication: Authentication, @PathVariable id: UUID, quantity: Double): Double {
-        val drug = drugRepository.findByIdAndUsingsUserId(id, authentication.userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
-        if (quantity > drug.quantity) throw ResponseStatusException(HttpStatus.BAD_REQUEST)
-        drug.quantity -= quantity
-        var plannedQuantity = drugService.getPlannedQuantity(
-            drugRepository.findByIdAndUsingsUserId(id, authentication.userId) ?: throw ResponseStatusException(
-                HttpStatus.NOT_FOUND
-            )
-        )
-        if (plannedQuantity<drug.quantity){
+    /**
+     * Consume a drug (reduce quantity)
+     */
+    @PutMapping("/{id}/consume")
+    fun consumeDrug(
+        authentication: Authentication, 
+        @PathVariable id: UUID, 
+        @RequestParam quantity: Double
+    ): Map<String, Double> {
+        val remainingQuantity = drugService.consumeDrug(authentication.userId, id, quantity)
+        return mapOf("remainingQuantity" to remainingQuantity)
+    }
 
-            userService.alertUsers((plannedQuantity-drug.quantity)/numberOfAffectedUser)
+    /**
+     * Delete a drug
+     */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteDrug(authentication: Authentication, @PathVariable id: UUID) {
+        drugService.deleteDrug(authentication.userId, id)
+    }
+
+    /**
+     * Move a drug to another medicine kit
+     */
+    @PutMapping("/{id}/move")
+    fun moveDrug(
+        authentication: Authentication,
+        @PathVariable id: UUID,
+        @RequestParam targetMedKitId: UUID
+    ): DrugDTO {
+        return drugService.moveDrugToMedKit(authentication.userId, id, targetMedKitId)
+    }
+
+    /**
+     * Create a treatment plan for a drug
+     */
+    @PostMapping("/plan")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createTreatmentPlan(
+        authentication: Authentication,
+        @RequestParam drugId: UUID,
+        @RequestParam plannedAmount: Double
+    ): Map<String, String> {
+        usingService.createUsing(authentication.userId, drugId, plannedAmount)
+        return mapOf("message" to "Treatment plan created successfully")
+    }
+
+    /**
+     * Record a planned intake
+     */
+    @PutMapping("/plan/{drugId}/intake")
+    fun recordPlannedIntake(
+        authentication: Authentication,
+        @PathVariable drugId: UUID,
+        @RequestParam consumedAmount: Double
+    ): Map<String, Double> {
+        val remainingQuantity = usingService.recordPlannedIntake(authentication.userId, drugId, consumedAmount)
+        return mapOf("remainingQuantity" to remainingQuantity)
+    }
+
+    /**
+     * Update a treatment plan
+     */
+    @PutMapping("/plan/{drugId}")
+    fun updateTreatmentPlan(
+        authentication: Authentication,
+        @PathVariable drugId: UUID,
+        @RequestParam newPlannedAmount: Double
+    ): Map<String, String> {
+        usingService.updateUsing(authentication.userId, drugId, newPlannedAmount)
+        return mapOf("message" to "Treatment plan updated successfully")
+    }
+
+    /**
+     * Delete a treatment plan
+     */
+    @DeleteMapping("/plan/{drugId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteTreatmentPlan(authentication: Authentication, @PathVariable drugId: UUID) {
+        usingService.deleteUsing(authentication.userId, drugId)
+    }
+
+    /**
+     * Fuzzy search for drug templates by name
+     */
+    @GetMapping("/template")
+    fun searchDrugTemplates(
+        authentication: Authentication,
+        @RequestParam searchTerm: String
+    ): List<Map<String, Any>> {
+        val drugs = vidalDrugService.fuzzySearchByName(searchTerm)
+        return drugs.map { drug ->
+            mapOf(
+                "id" to drug.id,
+                "name" to drug.name,
+                "formType" to (drug.formType?.name ?: ""),
+                "manufacturer" to drug.manufacturer
+            )
         }
     }
 
-    @PutMapping("/plan")
-    fun initiateConsumePlan(authentication: Authentication, drugId: UUID, quantity: Double): Double {
-      val plan = Using(UsingKey(authentication.userId,drugId),plannedAmount = quantity)
-    }
-
-    @PutMapping("/plan/{id}")
-    fun plannedIntake(authentication: Authentication, @PathVariable id: UUID, quantityConsumed: Double): Double {
-
-    }
-
-    @PutMapping("/change_plan/{id}")
-    fun changePlan(authentication: Authentication, @PathVariable id: UUID, quantityConsumed: Double): Double {
-
-    }
-
-    @GetMapping("/template")
-    fun getSimilarNames(authentication: Authentication, string: String): List<Pair<String,UUID>> {
-        return //fuzzySearch on VidalDrug repo
-    }
-
-
+    /**
+     * Get a specific drug template by ID
+     */
     @GetMapping("/template/{id}")
-    fun getSimilarNames(authentication: Authentication, string: String, @PathVariable id: String): List<Pair<String,UUID>> {
-        return //return VidalDrug by id that client received via getSimilarNames
+    fun getDrugTemplate(
+        authentication: Authentication,
+        @PathVariable id: UUID
+    ): VidalDrug {
+        return vidalDrugService.getDrugById(id)
     }
-
 }
