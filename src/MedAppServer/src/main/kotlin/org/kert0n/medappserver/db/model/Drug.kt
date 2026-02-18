@@ -59,9 +59,13 @@ class Drug (
     var medKit: MedKit,
     
     @OneToMany(mappedBy = "drug", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
-    val usings: MutableSet<Using> = mutableSetOf(),
+    var usings: MutableSet<Using> = mutableSetOf()
 
     ){
+    @Version
+    @Column(name = "version")
+    var version: Long = 0
+    
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
