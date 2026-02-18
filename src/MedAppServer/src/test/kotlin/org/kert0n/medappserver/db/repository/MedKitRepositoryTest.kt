@@ -63,9 +63,11 @@ class MedKitRepositoryTest {
 
     @Test
     fun `findByUsersId - returns multiple medkits for user`() {
+        // Create new medkit and associate with existing user
         val medKit2 = medKitBuilder().build()
-        medKit2.users.add(testUser)
-        testUser.medKits.add(medKit2)
+        // Fetch user from DB to get managed entity
+        val managedUser = entityManager.find(User::class.java, testUser.id)
+        managedUser.addMedKit(medKit2)  // Use helper method for proper bidirectional sync
         entityManager.persist(medKit2)
         entityManager.flush()
 
