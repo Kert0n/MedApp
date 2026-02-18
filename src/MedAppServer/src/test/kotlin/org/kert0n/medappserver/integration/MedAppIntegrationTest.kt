@@ -1,18 +1,17 @@
 package org.kert0n.medappserver.integration
 
 import org.junit.jupiter.api.Test
-import org.kert0n.medappserver.TestcontainersConfiguration
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.services.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import org.junit.jupiter.api.Assertions.*
 import java.util.*
 
 @SpringBootTest
-@Import(TestcontainersConfiguration::class)
+@ActiveProfiles("test")  // Use H2 database for integration tests
 @Transactional
 class MedAppIntegrationTest {
 

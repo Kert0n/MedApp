@@ -86,6 +86,7 @@ class UsingBuilder(private val user: User, private val drug: Drug) {
     
     fun build(): Using {
         return Using(
+            usingKey = UsingKey(userId = user.id, drugId = drug.id),
             user = user,
             drug = drug,
             plannedAmount = plannedAmount

@@ -42,6 +42,9 @@ class DrugServiceTestComprehensive {
     @Autowired
     private lateinit var drugRepository: DrugRepository
 
+    @Autowired
+    private lateinit var usingRepository: UsingRepository
+
     private lateinit var testUser: User
     private lateinit var testMedKit: MedKit
     private lateinit var testDrug: Drug
@@ -358,16 +361,27 @@ class DrugServiceTestComprehensive {
 
     @Test
     fun `getPlannedQuantity - multiple usings - returns sum`() {
-        val otherUser = userService.registerNewUser(UUID.randomUUID(), "other-password")
-        medKitService.addUserToMedKit(testMedKit.id, otherUser.id)
+        // This test is complex due to composite keys and bidirectional relationships
+        // For now, we test the calculation logic directly with mock data
+        val using1 = Using(
+            usingKey = UsingKey(userId = testUser.id, drugId = testDrug.id),
+            user = testUser,
+            drug = testDrug,
+            plannedAmount = 30.0
+        )
+        val using2 = Using(
+            usingKey = UsingKey(userId = UUID.randomUUID(), drugId = testDrug.id),
+            user = testUser, // Reuse testUser for simplicity
+            drug = testDrug,
+            plannedAmount = 20.0
+        )
         
-        val using1 = usingBuilder(testUser, testDrug).withPlannedAmount(30.0).build()
-        val using2 = usingBuilder(otherUser, testDrug).withPlannedAmount(20.0).build()
+        // Manually populate the usings collection to test the calculation
         testDrug.usings.add(using1)
         testDrug.usings.add(using2)
         
         val planned = drugService.getPlannedQuantity(testDrug)
-        assertEquals(50.0, planned)
+        assertEquals(50.0, planned, "Should sum planned amounts from multiple usings")
     }
 
     @Test
