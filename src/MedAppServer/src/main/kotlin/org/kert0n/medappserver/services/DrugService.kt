@@ -9,6 +9,7 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
+import java.time.Instant
 import java.util.*
 
 @Service
@@ -135,15 +136,14 @@ class DrugService(
         val targetMedKit = medKitRepository.findByIdAndUserId(targetMedKitId, userId)
             ?: throw ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to target medicine kit")
         
-        // Update drug's medicine kit
-        val updatedDrug = drug.apply {
-            // Use reflection or recreate entity since medKit is val
-            // For simplicity, we'll delete and recreate
+        // Save usings data before deleting the drug
+        val usingsData = drug.usings.map { using ->
+            Triple(using.user, using.plannedAmount, using.lastUsed)
         }
         
         // Since medKit is val, we need to create a new drug instance
         drugRepository.delete(drug)
-        usingRepository.deleteAllByDrugId(drugId)
+        drugRepository.flush() // Ensure deletion is flushed
         
         val newDrug = Drug(
             id = drug.id,
@@ -159,6 +159,21 @@ class DrugService(
         )
         
         val savedDrug = drugRepository.save(newDrug)
+        drugRepository.flush() // Ensure new drug is saved
+        
+        // Recreate usings for the new drug
+        val newUsings = usingsData.map { (user, plannedAmount, lastUsed) ->
+            Using(
+                usingKey = UsingKey(user.id, savedDrug.id),
+                user = user,
+                drug = savedDrug,
+                plannedAmount = plannedAmount,
+                lastUsed = lastUsed,
+                createdAt = Instant.now()
+            )
+        }
+        usingRepository.saveAll(newUsings)
+        
         return savedDrug.toDTO()
     }
 
@@ -185,10 +200,11 @@ class DrugService(
         val reductionFactor = actualQuantity / plannedTotal
         
         // Reduce all planned amounts proportionally
-        drug.usings.forEach { using ->
+        val updatedUsings = drug.usings.map { using ->
             using.plannedAmount *= reductionFactor
-            usingRepository.save(using)
+            using
         }
+        usingRepository.saveAll(updatedUsings)
     }
 
     /**

@@ -173,10 +173,11 @@ class UsingService(
         val reductionFactor = actualQuantity / plannedTotal
         
         // Reduce all planned amounts proportionally
-        drug.usings.forEach { using ->
+        val updatedUsings = drug.usings.map { using ->
             using.plannedAmount *= reductionFactor
             using.lastUsed = Instant.now()
-            usingRepository.save(using)
+            using
         }
+        usingRepository.saveAll(updatedUsings)
     }
 }

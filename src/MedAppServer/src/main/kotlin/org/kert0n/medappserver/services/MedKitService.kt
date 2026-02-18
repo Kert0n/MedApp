@@ -72,8 +72,16 @@ class MedKitService(
             val targetMedKit = medKitRepository.findByIdAndUserId(targetMedKitId, userId)
                 ?: throw ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to target medicine kit")
             
-            // Move each drug
+            // Move each drug with their usings
             drugs.forEach { drug ->
+                // Save usings data
+                val usingsData = drug.usings.map { using ->
+                    Triple(using.user, using.plannedAmount, using.lastUsed)
+                }
+                
+                drugRepository.delete(drug)
+                drugRepository.flush()
+                
                 val newDrug = Drug(
                     id = drug.id,
                     name = drug.name,
@@ -86,8 +94,21 @@ class MedKitService(
                     description = drug.description,
                     medKit = targetMedKit
                 )
-                drugRepository.delete(drug)
-                drugRepository.save(newDrug)
+                val savedDrug = drugRepository.save(newDrug)
+                drugRepository.flush()
+                
+                // Recreate usings
+                val newUsings = usingsData.map { (user, plannedAmount, lastUsed) ->
+                    Using(
+                        usingKey = UsingKey(user.id, savedDrug.id),
+                        user = user,
+                        drug = savedDrug,
+                        plannedAmount = plannedAmount,
+                        lastUsed = lastUsed,
+                        createdAt = java.time.Instant.now()
+                    )
+                }
+                usingRepository.saveAll(newUsings)
             }
         } else {
             // Delete all drugs and their usings
