@@ -42,17 +42,13 @@ class MedKitService(
      */
     @Transactional
     fun createMedKit(userId: UUID): MedKitDTO {
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        // User is already authenticated, so we can safely get a reference
+        val user = userRepository.getReferenceById(userId)
         
         val medKit = MedKit()
         medKit.users.add(user)
         
         val savedMedKit = medKitRepository.save(medKit)
-        
-        // Also update user's side of the relationship
-        user.medKits.add(savedMedKit)
-        userRepository.save(user)
         
         return savedMedKit.toDTO()
     }
@@ -72,44 +68,11 @@ class MedKitService(
             val targetMedKit = medKitRepository.findByIdAndUserId(targetMedKitId, userId)
                 ?: throw ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to target medicine kit")
             
-            // Move each drug with their usings
+            // Simply update the medKit reference for each drug
             drugs.forEach { drug ->
-                // Save usings data
-                val usingsData = drug.usings.map { using ->
-                    Triple(using.user, using.plannedAmount, using.lastUsed)
-                }
-                
-                drugRepository.delete(drug)
-                drugRepository.flush()
-                
-                val newDrug = Drug(
-                    id = drug.id,
-                    name = drug.name,
-                    quantity = drug.quantity,
-                    quantityUnit = drug.quantityUnit,
-                    formType = drug.formType,
-                    category = drug.category,
-                    manufacturer = drug.manufacturer,
-                    country = drug.country,
-                    description = drug.description,
-                    medKit = targetMedKit
-                )
-                val savedDrug = drugRepository.save(newDrug)
-                drugRepository.flush()
-                
-                // Recreate usings
-                val newUsings = usingsData.map { (user, plannedAmount, lastUsed) ->
-                    Using(
-                        usingKey = UsingKey(user.id, savedDrug.id),
-                        user = user,
-                        drug = savedDrug,
-                        plannedAmount = plannedAmount,
-                        lastUsed = lastUsed,
-                        createdAt = java.time.Instant.now()
-                    )
-                }
-                usingRepository.saveAll(newUsings)
+                drug.medKit = targetMedKit
             }
+            drugRepository.saveAll(drugs)
         } else {
             // Delete all drugs and their usings
             drugs.forEach { drug ->
@@ -119,11 +82,10 @@ class MedKitService(
         }
         
         // Remove user from medicine kit
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        // User is already authenticated, so we can safely get a reference
+        val user = userRepository.getReferenceById(userId)
         
         medKit.users.remove(user)
-        user.medKits.remove(medKit)
         
         // If no users left, delete the medicine kit
         if (medKit.users.isEmpty()) {
@@ -131,8 +93,6 @@ class MedKitService(
         } else {
             medKitRepository.save(medKit)
         }
-        
-        userRepository.save(user)
     }
 
     /**
@@ -140,8 +100,8 @@ class MedKitService(
      */
     @Transactional
     fun addUserToMedKit(userId: UUID, medKitId: UUID) {
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        // User is already authenticated, so we can safely get a reference
+        val user = userRepository.getReferenceById(userId)
         
         val medKit = medKitRepository.findByIdOrNull(medKitId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Medicine kit not found")
@@ -151,10 +111,7 @@ class MedKitService(
         }
         
         medKit.users.add(user)
-        user.medKits.add(medKit)
-        
         medKitRepository.save(medKit)
-        userRepository.save(user)
     }
 
     /**

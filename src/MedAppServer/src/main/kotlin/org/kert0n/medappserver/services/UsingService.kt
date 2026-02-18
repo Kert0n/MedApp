@@ -47,8 +47,8 @@ class UsingService(
         val drug = drugRepository.findByIdAndUserId(drugId, userId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found or access denied")
         
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        // User is already authenticated, so we can safely get a reference
+        val user = userRepository.getReferenceById(userId)
         
         // Check if using already exists
         val existingUsing = usingRepository.findByUserIdAndDrugId(userId, drugId)

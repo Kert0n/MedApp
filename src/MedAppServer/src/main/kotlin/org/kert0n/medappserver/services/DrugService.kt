@@ -136,43 +136,9 @@ class DrugService(
         val targetMedKit = medKitRepository.findByIdAndUserId(targetMedKitId, userId)
             ?: throw ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to target medicine kit")
         
-        // Save usings data before deleting the drug
-        val usingsData = drug.usings.map { using ->
-            Triple(using.user, using.plannedAmount, using.lastUsed)
-        }
-        
-        // Since medKit is val, we need to create a new drug instance
-        drugRepository.delete(drug)
-        drugRepository.flush() // Ensure deletion is flushed
-        
-        val newDrug = Drug(
-            id = drug.id,
-            name = drug.name,
-            quantity = drug.quantity,
-            quantityUnit = drug.quantityUnit,
-            formType = drug.formType,
-            category = drug.category,
-            manufacturer = drug.manufacturer,
-            country = drug.country,
-            description = drug.description,
-            medKit = targetMedKit
-        )
-        
-        val savedDrug = drugRepository.save(newDrug)
-        drugRepository.flush() // Ensure new drug is saved
-        
-        // Recreate usings for the new drug
-        val newUsings = usingsData.map { (user, plannedAmount, lastUsed) ->
-            Using(
-                usingKey = UsingKey(user.id, savedDrug.id),
-                user = user,
-                drug = savedDrug,
-                plannedAmount = plannedAmount,
-                lastUsed = lastUsed,
-                createdAt = Instant.now()
-            )
-        }
-        usingRepository.saveAll(newUsings)
+        // Simply update the medKit reference
+        drug.medKit = targetMedKit
+        val savedDrug = drugRepository.save(drug)
         
         return savedDrug.toDTO()
     }

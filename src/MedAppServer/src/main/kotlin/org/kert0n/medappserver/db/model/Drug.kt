@@ -42,7 +42,7 @@ class Drug (
     @Column(name = "description")
     var description: String?,
     @ManyToOne(fetch = FetchType.LAZY)
-    val medKit: MedKit,
+    var medKit: MedKit,
     @OneToMany(mappedBy = "drug",fetch = FetchType.LAZY)
     val usings: MutableSet<Using> = mutableSetOf(),
 
