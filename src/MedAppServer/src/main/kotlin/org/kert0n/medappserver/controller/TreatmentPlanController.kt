@@ -1,6 +1,8 @@
 package org.kert0n.medappserver.controller
 
 import jakarta.validation.Valid
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.NotNull
 import org.kert0n.medappserver.db.model.UsingCreateDTO
 import org.kert0n.medappserver.db.model.UsingDTO
 import org.kert0n.medappserver.db.model.UsingUpdateDTO
@@ -77,5 +79,7 @@ class TreatmentPlanController(
 }
 
 data class IntakeRequest(
+    @field:NotNull
+    @field:DecimalMin("0.0")
     val quantityConsumed: Double
 )

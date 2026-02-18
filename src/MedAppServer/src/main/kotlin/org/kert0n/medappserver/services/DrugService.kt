@@ -24,8 +24,8 @@ class DrugService(
     @Transactional(readOnly = true)
     fun findById(drugId: UUID): Drug {
         logger.debug("Finding drug by ID: {}", drugId)
-        return drugRepository.findByIdOrNull(drugId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found: $drugId")
+        return drugRepository.findById(drugId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found: $drugId") }
     }
 
     @Transactional(readOnly = true)
@@ -51,8 +51,8 @@ class DrugService(
     fun create(createDTO: DrugCreateDTO, userId: UUID): Drug {
         logger.debug("Creating drug: {} for user: {}", createDTO.name, userId)
         
-        val medKit = medKitRepository.findByIdOrNull(createDTO.medKitId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "MedKit not found")
+        val medKit = medKitRepository.findById(createDTO.medKitId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "MedKit not found") }
         
         // Check if user has access to this medkit
         if (!medKit.users.any { it.id == userId }) {

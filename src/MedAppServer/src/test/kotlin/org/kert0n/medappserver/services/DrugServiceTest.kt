@@ -9,7 +9,7 @@ import org.kert0n.medappserver.db.repository.DrugRepository
 import org.kert0n.medappserver.db.repository.MedKitRepository
 import org.kert0n.medappserver.db.repository.UsingRepository
 import org.mockito.kotlin.*
-import org.springframework.data.repository.findByIdOrNull
+import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
 import java.util.*
 
@@ -51,25 +51,6 @@ class DrugServiceTest {
     }
 
     @Test
-    fun `findById should return drug when exists`() {
-        whenever(drugRepository.findByIdOrNull(testDrug.id)).thenReturn(testDrug)
-
-        val result = drugService.findById(testDrug.id)
-
-        assertEquals(testDrug, result)
-    }
-
-    @Test
-    fun `findById should throw exception when not found`() {
-        val nonExistentId = UUID.randomUUID()
-        whenever(drugRepository.findByIdOrNull(nonExistentId)).thenReturn(null)
-
-        assertThrows<ResponseStatusException> {
-            drugService.findById(nonExistentId)
-        }
-    }
-
-    @Test
     fun `findByIdForUser should return drug when user has access`() {
         whenever(drugRepository.findByIdAndMedKitUserId(testDrug.id, testUser.id))
             .thenReturn(testDrug)
@@ -77,6 +58,18 @@ class DrugServiceTest {
         val result = drugService.findByIdForUser(testDrug.id, testUser.id)
 
         assertEquals(testDrug, result)
+    }
+
+    @Test
+    fun `findByIdForUser should throw exception when user has no access`() {
+        val unauthorizedUserId = UUID.randomUUID()
+        whenever(drugRepository.findByIdAndMedKitUserId(testDrug.id, unauthorizedUserId))
+            .thenReturn(null)
+
+        val exception = assertThrows<ResponseStatusException> {
+            drugService.findByIdForUser(testDrug.id, unauthorizedUserId)
+        }
+        assertEquals(HttpStatus.NOT_FOUND, exception.statusCode)
     }
 
     @Test
@@ -88,13 +81,29 @@ class DrugServiceTest {
             medKitId = testMedKit.id
         )
 
-        whenever(medKitRepository.findByIdOrNull(testMedKit.id)).thenReturn(testMedKit)
+        whenever(medKitRepository.findById(testMedKit.id)).thenReturn(Optional.of(testMedKit))
         whenever(drugRepository.save(any<Drug>())).thenAnswer { it.arguments[0] }
 
         val result = drugService.create(createDTO, testUser.id)
 
         assertEquals(createDTO.name, result.name)
         assertEquals(createDTO.quantity, result.quantity)
+    }
+
+    @Test
+    fun `create should throw exception when medkit not found`() {
+        val createDTO = DrugCreateDTO(
+            name = "New Drug",
+            quantity = 50.0,
+            quantityUnit = "ml",
+            medKitId = UUID.randomUUID()
+        )
+
+        whenever(medKitRepository.findById(any())).thenReturn(Optional.empty())
+
+        assertThrows<ResponseStatusException> {
+            drugService.create(createDTO, testUser.id)
+        }
     }
 
     @Test
@@ -109,6 +118,18 @@ class DrugServiceTest {
         drugService.consumeDrug(testDrug.id, consumeAmount, testUser.id)
 
         assertEquals(initialQuantity - consumeAmount, testDrug.quantity)
+    }
+
+    @Test
+    fun `consumeDrug should throw exception when quantity insufficient`() {
+        val excessiveAmount = testDrug.quantity + 10.0
+
+        whenever(drugRepository.findByIdAndMedKitUserId(testDrug.id, testUser.id))
+            .thenReturn(testDrug)
+
+        assertThrows<ResponseStatusException> {
+            drugService.consumeDrug(testDrug.id, excessiveAmount, testUser.id)
+        }
     }
 
     @Test
@@ -130,5 +151,12 @@ class DrugServiceTest {
         val result = drugService.getPlannedQuantity(testDrug)
 
         assertEquals(50.0, result)
+    }
+
+    @Test
+    fun `getPlannedQuantity should return zero when no usings`() {
+        val result = drugService.getPlannedQuantity(testDrug)
+
+        assertEquals(0.0, result)
     }
 }
