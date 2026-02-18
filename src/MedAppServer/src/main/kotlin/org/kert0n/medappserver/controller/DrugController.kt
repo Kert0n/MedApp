@@ -1,6 +1,8 @@
 package org.kert0n.medappserver.controller
 
 import jakarta.validation.Valid
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.NotNull
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.services.*
 import org.slf4j.LoggerFactory
@@ -126,10 +128,13 @@ data class QuantityInfo(
 )
 
 data class ConsumeRequest(
+    @field:NotNull
+    @field:DecimalMin("0.0")
     val quantity: Double
 )
 
 data class MoveDrugRequest(
+    @field:NotNull
     val targetMedKitId: UUID
 )
 
@@ -138,6 +143,6 @@ data class DrugTemplateDTO(
     val name: String,
     val formType: String?,
     val category: String?,
-    val manufacturer: String,
+    val manufacturer: String?,
     val description: String?
 )

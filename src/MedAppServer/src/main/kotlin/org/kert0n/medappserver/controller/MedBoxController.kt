@@ -1,6 +1,7 @@
 package org.kert0n.medappserver.controller
 
 import jakarta.validation.Valid
+import jakarta.validation.constraints.NotNull
 import org.kert0n.medappserver.db.model.MedKitDTO
 import org.kert0n.medappserver.services.MedKitService
 import org.kert0n.medappserver.services.userId
@@ -83,5 +84,6 @@ data class MedKitSummaryDTO(
 )
 
 data class AddUserRequest(
+    @field:NotNull
     val userId: UUID
 )
