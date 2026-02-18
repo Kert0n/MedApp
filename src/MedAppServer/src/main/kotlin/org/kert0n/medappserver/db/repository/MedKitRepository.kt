@@ -1,6 +1,7 @@
 package org.kert0n.medappserver.db.repository
 
 import org.kert0n.medappserver.db.model.MedKit
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -11,11 +12,13 @@ interface MedKitRepository: JpaRepository<MedKit, UUID> {
     /**
      * Find all medicine kits that a user has access to
      */
+    @EntityGraph(attributePaths = ["users", "drugs"])
     fun findByUsersId(userId: UUID): List<MedKit>
     
     /**
      * Find a medicine kit by ID only if the user has access to it
      */
+    @EntityGraph(attributePaths = ["users", "drugs"])
     @Query("""
         SELECT mk FROM MedKit mk 
         JOIN mk.users u 

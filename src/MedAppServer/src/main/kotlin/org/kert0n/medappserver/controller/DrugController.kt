@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
+import jakarta.validation.constraints.Min
 import org.kert0n.medappserver.db.model.DrugDTO
 import org.kert0n.medappserver.db.model.DrugPostDTO
 import org.kert0n.medappserver.db.model.parsed.VidalDrug
@@ -14,12 +16,14 @@ import org.kert0n.medappserver.services.VidalDrugService
 import org.kert0n.medappserver.services.userId
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import java.util.*
 
 @RestController
 @RequestMapping("/drug")
 @Tag(name = "Drug Management", description = "APIs for managing drugs/medicines")
+@Validated
 class DrugController(
     private val drugService: DrugService,
     private val usingService: UsingService,
@@ -49,13 +53,14 @@ class DrugController(
     @Operation(summary = "Add drugs", description = "Adds new drugs to a medicine kit")
     @ApiResponses(value = [
         ApiResponse(responseCode = "201", description = "Drugs created successfully"),
+        ApiResponse(responseCode = "400", description = "Invalid request data"),
         ApiResponse(responseCode = "403", description = "Access denied to medicine kit")
     ])
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun addDrugs(
         @Parameter(hidden = true) authentication: Authentication,
-        @RequestBody drugs: Set<DrugPostDTO>
+        @Valid @RequestBody drugs: Set<DrugPostDTO>
     ): List<DrugDTO> {
         return drugs.map { drugService.addDrug(authentication.userId, it) }
     }

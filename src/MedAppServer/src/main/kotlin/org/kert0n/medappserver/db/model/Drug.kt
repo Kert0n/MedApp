@@ -9,14 +9,19 @@ import jakarta.persistence.Index
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
 import java.util.UUID
 
 @Entity
 @Table(
     name = "user_drugs",
     indexes = [
-        Index(name = "ix_user_drugs_name", columnList = "name")
+        Index(name = "ix_user_drugs_name", columnList = "name"),
+        Index(name = "ix_user_drugs_med_kit_id", columnList = "med_kit_id"),
+        Index(name = "ix_user_drugs_quantity", columnList = "quantity")
     ]
 )
 class Drug (
@@ -88,23 +93,42 @@ data class DrugDTO(
 )
 
 data class DrugPostDTO(
+    @field:NotBlank(message = "Drug name cannot be blank")
+    @field:Size(max = 300, message = "Drug name must not exceed 300 characters")
     @Schema(description = "Drug name", example = "Aspirin", required = true)
     val name: String,
+    
+    @field:NotNull(message = "Quantity is required")
+    @field:Min(value = 0, message = "Quantity must be non-negative")
     @Schema(description = "Initial quantity", example = "100.0", required = true)
     val quantity: Double,
+    
+    @field:NotBlank(message = "Quantity unit cannot be blank")
+    @field:Size(max = 50, message = "Quantity unit must not exceed 50 characters")
     @Schema(description = "Quantity unit", example = "tablets", required = true)
     val quantityUnit: String,
+    
+    @field:Size(max = 100, message = "Form type must not exceed 100 characters")
     @Schema(description = "Drug form type", example = "tablet")
-    val formType: String,
+    val formType: String?,
+    
+    @field:Size(max = 300, message = "Category must not exceed 300 characters")
     @Schema(description = "Drug category", example = "Pain relief")
-    val category: String,
+    val category: String?,
+    
+    @field:Size(max = 300, message = "Manufacturer must not exceed 300 characters")
     @Schema(description = "Manufacturer name", example = "Bayer")
-    val manufacturer: String,
+    val manufacturer: String?,
+    
+    @field:Size(max = 100, message = "Country must not exceed 100 characters")
     @Schema(description = "Country of origin", example = "Germany")
-    val country: String,
+    val country: String?,
+    
     @Schema(description = "Drug description", example = "Pain reliever")
-    val description: String,
+    val description: String?,
+    
+    @field:NotNull(message = "Owner medicine kit ID is required")
     @Schema(description = "Medicine kit UUID to add drug to", example = "123e4567-e89b-12d3-a456-426614174001", required = true)
-    val owner:UUID,
+    val owner: UUID,
 )
 
