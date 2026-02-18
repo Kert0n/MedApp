@@ -1,5 +1,6 @@
 package org.kert0n.medappserver.db.model
 
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
 import org.springframework.security.core.GrantedAuthority
@@ -58,9 +59,10 @@ class User(
 }
 
 data class UserDto(
+    @Schema(description = "User unique identifier", example = "123e4567-e89b-12d3-a456-426614174000")
     val id: UUID,
+    @Schema(description = "Set of medicine kits accessible to this user")
     val medKits: Set<MedKitDTO>
 )
-
 
 

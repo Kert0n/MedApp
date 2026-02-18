@@ -1,5 +1,6 @@
 package org.kert0n.medappserver.db.model
 
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.persistence.*
 import java.util.*
 
@@ -29,5 +30,6 @@ class MedKit(
 }
 
 data class MedKitDTO(
+    @Schema(description = "Set of drugs in this medicine kit")
     val drugs: Set<DrugDTO>
 )

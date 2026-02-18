@@ -1,5 +1,6 @@
 package org.kert0n.medappserver.db.model
 
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -62,28 +63,48 @@ class Drug (
 }
 
 data class DrugDTO(
+    @Schema(description = "Drug unique identifier", example = "123e4567-e89b-12d3-a456-426614174000")
     val id: UUID,
+    @Schema(description = "Drug name", example = "Aspirin")
     val name: String,
+    @Schema(description = "Current available quantity", example = "100.0")
     val quantity: Double,
+    @Schema(description = "Total planned quantity across all users", example = "30.0")
     val plannedQuantity: Double,
+    @Schema(description = "Quantity unit", example = "tablets")
     val quantityUnit: String,
+    @Schema(description = "Drug form type", example = "tablet")
     val formType: String,
+    @Schema(description = "Drug category", example = "Pain relief")
     val category: String,
+    @Schema(description = "Manufacturer name", example = "Bayer")
     val manufacturer: String,
+    @Schema(description = "Country of origin", example = "Germany")
     val country: String,
+    @Schema(description = "Drug description", example = "Pain reliever and fever reducer")
     val description: String,
+    @Schema(description = "Medicine kit UUID", example = "123e4567-e89b-12d3-a456-426614174001")
     val medKit:UUID,
 )
 
 data class DrugPostDTO(
+    @Schema(description = "Drug name", example = "Aspirin", required = true)
     val name: String,
+    @Schema(description = "Initial quantity", example = "100.0", required = true)
     val quantity: Double,
+    @Schema(description = "Quantity unit", example = "tablets", required = true)
     val quantityUnit: String,
+    @Schema(description = "Drug form type", example = "tablet")
     val formType: String,
+    @Schema(description = "Drug category", example = "Pain relief")
     val category: String,
+    @Schema(description = "Manufacturer name", example = "Bayer")
     val manufacturer: String,
+    @Schema(description = "Country of origin", example = "Germany")
     val country: String,
+    @Schema(description = "Drug description", example = "Pain reliever")
     val description: String,
+    @Schema(description = "Medicine kit UUID to add drug to", example = "123e4567-e89b-12d3-a456-426614174001", required = true)
     val owner:UUID,
 )
 

@@ -1,5 +1,9 @@
 package org.kert0n.medappserver.controller
 
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.kert0n.medappserver.db.model.UserDto
 import org.kert0n.medappserver.services.MedKitService
 import org.kert0n.medappserver.services.UserService
@@ -11,16 +15,19 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/user")
+@Tag(name = "User Data", description = "APIs for retrieving user data and medicine kits")
 class UserController(
     private val userService: UserService,
     private val medKitService: MedKitService
 ) {
 
-    /**
-     * Get all data for the authenticated user (medicine kits with drugs)
-     */
+    @Operation(
+        summary = "Get all user data",
+        description = "Retrieves complete user data including all medicine kits and drugs"
+    )
+    @ApiResponse(responseCode = "200", description = "User data retrieved successfully")
     @GetMapping
-    fun getAllDataForUser(authentication: Authentication): UserDto {
+    fun getAllDataForUser(@Parameter(hidden = true) authentication: Authentication): UserDto {
         val userId = authentication.userId
         val user = userService.findById(userId)
         val medKits = medKitService.getAllMedKitsForUser(userId)
