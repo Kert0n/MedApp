@@ -2,34 +2,46 @@ package org.kert0n.medappserver.db.model
 
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.DecimalMin
 import java.io.Serializable
 import java.time.Instant
 import java.util.*
 
 
 @Entity
-@Table(name = "usings")
+@Table(
+    name = "usings",
+    indexes = [
+        Index(name = "ix_usings_user_id", columnList = "user_id"),
+        Index(name = "ix_usings_drug_id", columnList = "drug_id")
+    ]
+)
 class Using(
 
     @EmbeddedId
     var usingKey: UsingKey = UsingKey(),
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("userId")
     @JoinColumn(name = "user_id")
     var user: User,
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("drugId")
     @JoinColumn(name = "drug_id")
     var drug: Drug,
+    
     @NotNull
     @Column(name = "planned_amount", nullable = false)
     var plannedAmount: Double,
+    
     @NotNull
     @Column(name = "last_modified", nullable = false)
-    var lastUsed: Instant,
+    var lastModified: Instant = Instant.now(),
+    
     @NotNull
     @Column(name = "created_at", nullable = false)
-    var createdAt: Instant = Instant.now(),
+    var createdAt: Instant = Instant.now()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -66,4 +78,27 @@ class UsingKey(
         return Objects.hash(userId, drugId)
     }
 }
+
+data class UsingDTO(
+    val userId: UUID,
+    val drugId: UUID,
+    val plannedAmount: Double,
+    val createdAt: Instant,
+    val lastModified: Instant
+)
+
+data class UsingCreateDTO(
+    @field:NotNull
+    val drugId: UUID,
+    
+    @field:NotNull
+    @field:DecimalMin("0.0")
+    val plannedAmount: Double
+)
+
+data class UsingUpdateDTO(
+    @field:NotNull
+    @field:DecimalMin("0.0")
+    val plannedAmount: Double
+)
 
