@@ -11,8 +11,4 @@ class UsingService(
 ) {
 
     fun getMyUsings(user: User): List<Using> = usingRepository.findAllByUserId(user.id)
-
-    fun checkInconsistency(using: Using): Boolean {
-        to
-    }
 }

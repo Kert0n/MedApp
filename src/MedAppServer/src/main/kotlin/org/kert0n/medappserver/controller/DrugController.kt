@@ -83,4 +83,15 @@ class DrugController(
 
     }
 
+    @GetMapping("/template")
+    fun getSimilarNames(authentication: Authentication, string: String): List<Pair<String,UUID>> {
+        return //fuzzySearch on VidalDrug repo
+    }
+
+
+    @GetMapping("/template/{id}")
+    fun getSimilarNames(authentication: Authentication, string: String, @PathVariable id: String): List<Pair<String,UUID>> {
+        return //return VidalDrug by id that client received via getSimilarNames
+    }
+
 }
