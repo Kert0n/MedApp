@@ -1,49 +1,63 @@
 package org.kert0n.medappserver.db.model
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.FetchType
-import jakarta.persistence.Id
-import jakarta.persistence.Index
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.OneToMany
-import jakarta.persistence.Table
+import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
+import jakarta.validation.constraints.DecimalMin
 import java.util.UUID
 
 @Entity
 @Table(
     name = "user_drugs",
     indexes = [
-        Index(name = "ix_user_drugs_name", columnList = "name")
+        Index(name = "ix_user_drugs_name", columnList = "name"),
+        Index(name = "ix_user_drugs_med_kit_id", columnList = "med_kit_id")
     ]
 )
 class Drug (
     @Id
     @Column(name = "id", nullable = false)
     var id: UUID = UUID.randomUUID(),
+    
     @NotNull
-    @Column(name = "name", nullable = false)
+    @Size(max = 300)
+    @Column(name = "name", nullable = false, length = 300)
     var name: String,
+    
     @NotNull
     @Column(name = "quantity", nullable = false)
     var quantity: Double,
+    
     @NotNull
-    @Column(name = "quantity_unit", nullable = false)
+    @Size(max = 50)
+    @Column(name = "quantity_unit", nullable = false, length = 50)
     var quantityUnit: String,
-    @Column(name = "form_type")
+    
+    @Size(max = 100)
+    @Column(name = "form_type", length = 100)
     var formType: String?,
-    @Column(name = "category")
+    
+    @Size(max = 200)
+    @Column(name = "category", length = 200)
     var category: String?,
-    @Column(name = "manufacturer")
+    
+    @Size(max = 300)
+    @Column(name = "manufacturer", length = 300)
     var manufacturer: String?,
-    @Column(name = "country")
+    
+    @Size(max = 100)
+    @Column(name = "country", length = 100)
     var country: String?,
-    @Column(name = "description")
+    
+    @Column(name = "description", length = Integer.MAX_VALUE)
     var description: String?,
+    
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "med_kit_id", nullable = false)
     val medKit: MedKit,
-    @OneToMany(mappedBy = "drug",fetch = FetchType.LAZY)
+    
+    @OneToMany(mappedBy = "drug", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
     val usings: MutableSet<Using> = mutableSetOf(),
 
     ){
@@ -67,23 +81,67 @@ data class DrugDTO(
     val quantity: Double,
     val plannedQuantity: Double,
     val quantityUnit: String,
-    val formType: String,
-    val category: String,
-    val manufacturer: String,
-    val country: String,
-    val description: String,
-    val medKit:UUID,
+    val formType: String?,
+    val category: String?,
+    val manufacturer: String?,
+    val country: String?,
+    val description: String?,
+    val medKitId: UUID
 )
 
-data class DrugPostDTO(
+data class DrugCreateDTO(
+    @field:NotNull
+    @field:Size(min = 1, max = 300)
     val name: String,
+    
+    @field:NotNull
+    @field:DecimalMin("0.0")
     val quantity: Double,
+    
+    @field:NotNull
+    @field:Size(min = 1, max = 50)
     val quantityUnit: String,
-    val formType: String,
-    val category: String,
-    val manufacturer: String,
-    val country: String,
-    val description: String,
-    val owner:UUID,
+    
+    @field:NotNull
+    val medKitId: UUID,
+    
+    @field:Size(max = 100)
+    val formType: String? = null,
+    
+    @field:Size(max = 200)
+    val category: String? = null,
+    
+    @field:Size(max = 300)
+    val manufacturer: String? = null,
+    
+    @field:Size(max = 100)
+    val country: String? = null,
+    
+    val description: String? = null
+)
+
+data class DrugUpdateDTO(
+    @field:Size(min = 1, max = 300)
+    val name: String? = null,
+    
+    @field:DecimalMin("0.0")
+    val quantity: Double? = null,
+    
+    @field:Size(min = 1, max = 50)
+    val quantityUnit: String? = null,
+    
+    @field:Size(max = 100)
+    val formType: String? = null,
+    
+    @field:Size(max = 200)
+    val category: String? = null,
+    
+    @field:Size(max = 300)
+    val manufacturer: String? = null,
+    
+    @field:Size(max = 100)
+    val country: String? = null,
+    
+    val description: String? = null
 )
 
