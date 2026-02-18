@@ -5,7 +5,7 @@ import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.db.repository.DrugRepository
 import org.kert0n.medappserver.db.repository.MedKitRepository
 import org.kert0n.medappserver.db.repository.UsingRepository
-import org.springframework.data.repository.findByIdOrNull
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
@@ -18,12 +18,16 @@ class DrugService(
     private val medKitRepository: MedKitRepository,
     private val usingRepository: UsingRepository
 ) {
+    
+    private val logger = LoggerFactory.getLogger(DrugService::class.java)
 
     /**
      * Get all drugs accessible to a user
      */
     fun getAllDrugsForUser(userId: UUID): List<DrugDTO> {
+        logger.debug("Getting all drugs for user")
         val drugs = drugRepository.findAllByUserId(userId)
+        logger.debug("Found {} drugs for user", drugs.size)
         return drugs.map { it.toDTO() }
     }
 

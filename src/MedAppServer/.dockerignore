@@ -1,0 +1,33 @@
+# Docker ignore file for MedApp Server
+
+# Gradle
+.gradle/
+build/
+out/
+bin/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Tests
+src/test/
+
+# Local configuration
+application-dev.properties
+application-local.properties
