@@ -4,9 +4,7 @@ import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
-import java.security.SecureRandom
 import java.util.*
-import kotlin.io.encoding.Base64
 
 @Entity
 @Table(
@@ -57,13 +55,12 @@ class User(
         return id.toString()
     }
 
-//
-//    override fun getAuthorities(): Collection<GrantedAuthority?>? = emptyList()
-//
-//    override fun getPassword(): String? = hashedKey
-//
-//    override fun getUsername(): String? = id.toString()
 }
+
+data class UserDto(
+    val id: UUID,
+    val medKits: Set<MedKitDTO>
+)
 
 
 
