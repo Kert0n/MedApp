@@ -44,6 +44,11 @@ class UsingService(
     fun createTreatmentPlan(userId: UUID, createDTO: UsingCreateDTO): Using {
         logger.debug("Creating treatment plan for user {} and drug {}", userId, createDTO.drugId)
         
+        // Validate planned amount is positive
+        if (createDTO.plannedAmount <= 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Planned amount must be positive")
+        }
+        
         val user = userRepository.findByIdOrNull(userId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
         
@@ -89,6 +94,11 @@ class UsingService(
     fun updateTreatmentPlan(userId: UUID, drugId: UUID, updateDTO: UsingUpdateDTO): Using {
         logger.debug("Updating treatment plan for user {} and drug {}", userId, drugId)
         
+        // Validate planned amount is positive
+        if (updateDTO.plannedAmount <= 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Planned amount must be positive")
+        }
+        
         val using = findByUserAndDrug(userId, drugId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Treatment plan not found")
         
@@ -115,7 +125,7 @@ class UsingService(
     fun recordIntake(userId: UUID, drugId: UUID, quantityConsumed: Double): Using {
         logger.debug("Recording intake for user {} and drug {}, quantity: {}", userId, drugId, quantityConsumed)
         
-        if (quantityConsumed < 0) {
+        if (quantityConsumed <= 0) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be positive")
         }
         
@@ -123,6 +133,14 @@ class UsingService(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Treatment plan not found")
         
         val drug = using.drug
+        
+        // Check if consumed quantity exceeds planned amount
+        if (quantityConsumed > using.plannedAmount) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST, 
+                "Consumed quantity exceeds planned amount. Planned: ${using.plannedAmount}, Consumed: $quantityConsumed"
+            )
+        }
         
         if (quantityConsumed > drug.quantity) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient drug quantity available")
