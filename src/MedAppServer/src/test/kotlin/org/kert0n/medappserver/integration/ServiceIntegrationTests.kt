@@ -236,6 +236,36 @@ class ServiceIntegrationTests {
     }
 
     @Test
+    fun `MedKitService - joinMedKitByKey adds user and invalidates key`() {
+        val owner = createUser()
+        val joiner = createUser()
+        val medKit = medKitService.createNew(owner.id)
+        entityManager.flush()
+
+        val shareKey = medKitService.generateMedKitShareKey(medKit.id, owner.id)
+        medKitService.joinMedKitByKey(shareKey, joiner.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        val joinerMedKits = medKitService.findAllByUser(joiner.id)
+        assertEquals(1, joinerMedKits.size)
+        assertEquals(medKit.id, joinerMedKits.first().id)
+
+        assertFailsWith<ResponseStatusException> {
+            medKitService.joinMedKitByKey(shareKey, joiner.id)
+        }
+    }
+
+    @Test
+    fun `MedKitService - joinMedKitByKey fails for missing key`() {
+        val user = createUser()
+
+        assertFailsWith<ResponseStatusException> {
+            medKitService.joinMedKitByKey("missing-key", user.id)
+        }
+    }
+
+    @Test
     fun `MedKitService - findByIdForUser throws when user has no access`() {
         val user1 = createUser()
         val user2 = createUser()

@@ -132,6 +132,38 @@ class MedKitControllerTest {
     }
 
     @Test
+    fun `POST join medkit - returns medkit DTO`() {
+        val medKit = MedKit(id = medKitId)
+        val medKitDTO = MedKitDTO(id = medKitId, drugs = emptySet())
+        whenever(medKitService.joinMedKitByKey("share-key-123", userId)).thenReturn(medKit)
+        whenever(medKitService.toMedKitDTO(medKit)).thenReturn(medKitDTO)
+
+        val joinRequest = MedKitController.JoinMedKitRequest(key = "share-key-123")
+
+        mockMvc.perform(
+            post("/med-kit/join")
+                .with(jwt().jwt { it.subject(userId.toString()) })
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(joinRequest))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(medKitId.toString()))
+    }
+
+    @Test
+    fun `POST join medkit - rejects blank key`() {
+        val joinRequest = MedKitController.JoinMedKitRequest(key = "")
+
+        mockMvc.perform(
+            post("/med-kit/join")
+                .with(jwt().jwt { it.subject(userId.toString()) })
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(joinRequest))
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
     fun `DELETE leave medkit - returns 204`() {
         doNothing().whenever(medKitService).removeUserFromMedKit(medKitId, userId)
 
