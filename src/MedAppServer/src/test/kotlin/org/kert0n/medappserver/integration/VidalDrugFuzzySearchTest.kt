@@ -3,16 +3,29 @@ package org.kert0n.medappserver.integration
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.TestcontainersConfiguration
+import org.kert0n.medappserver.db.model.parsed.FormType
 import org.kert0n.medappserver.db.model.parsed.VidalDrug
 import org.kert0n.medappserver.db.repository.VidalDrugRepository
+import org.kert0n.medappserver.services.VidalDrugService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.TestPropertySource
-import org.springframework.transaction.annotation.Transactional
+import jakarta.persistence.EntityManager
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.util.*
 import kotlin.test.*
 
+/**
+ * Integration tests for VidalDrug fuzzy search.
+ *
+ * NOTE: This test class deliberately does NOT use @Transactional on the class level.
+ * This ensures we catch LazyInitializationException bugs that occur in production
+ * when `spring.jpa.open-in-view=false` (the session closes after the repository call).
+ * Using @Transactional on tests keeps the Hibernate session open for the entire test,
+ * hiding lazy loading bugs that only manifest at runtime.
+ */
 @SpringBootTest
 @Import(TestcontainersConfiguration::class)
 @TestPropertySource(
@@ -21,24 +34,43 @@ import kotlin.test.*
         "spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect"
     ]
 )
-@Transactional
 class VidalDrugFuzzySearchTest {
 
     @Autowired
     private lateinit var vidalDrugRepository: VidalDrugRepository
 
+    @Autowired
+    private lateinit var vidalDrugService: VidalDrugService
+
+    @Autowired
+    private lateinit var entityManager: EntityManager
+
+    @Autowired
+    private lateinit var transactionManager: PlatformTransactionManager
+
+    private lateinit var txTemplate: TransactionTemplate
+
     @BeforeEach
     fun setup() {
-        vidalDrugRepository.deleteAll()
-        val drugs = listOf(
-            VidalDrug(name = "Аспирин", manufacturer = "Байер", otc = true),
-            VidalDrug(name = "Аспирин Кардио", manufacturer = "Байер", otc = true),
-            VidalDrug(name = "Ибупрофен", manufacturer = "Фармстандарт", otc = true),
-            VidalDrug(name = "Парацетамол", manufacturer = "Медисорб", otc = true),
-            VidalDrug(name = "Aspirin", manufacturer = "Bayer", otc = true),
-            VidalDrug(name = "Ibuprofen", manufacturer = "Generic", otc = true)
-        )
-        vidalDrugRepository.saveAll(drugs)
+        txTemplate = TransactionTemplate(transactionManager)
+        txTemplate.execute {
+            vidalDrugRepository.deleteAll()
+            entityManager.createNativeQuery("DELETE FROM form_types").executeUpdate()
+
+            val tabletType = FormType(name = "таблетки")
+            entityManager.persist(tabletType)
+            entityManager.flush()
+
+            val drugs = listOf(
+                VidalDrug(name = "Аспирин", manufacturer = "Байер", otc = true, formType = tabletType),
+                VidalDrug(name = "Аспирин Кардио", manufacturer = "Байер", otc = true, formType = tabletType),
+                VidalDrug(name = "Ибупрофен", manufacturer = "Фармстандарт", otc = true),
+                VidalDrug(name = "Парацетамол", manufacturer = "Медисорб", otc = true),
+                VidalDrug(name = "Aspirin", manufacturer = "Bayer", otc = true, formType = tabletType),
+                VidalDrug(name = "Ibuprofen", manufacturer = "Generic", otc = true)
+            )
+            vidalDrugRepository.saveAll(drugs)
+        }
     }
 
     @Test
@@ -97,17 +129,58 @@ class VidalDrugFuzzySearchTest {
 
     @Test
     fun `fuzzySearchByName prioritizes exact and prefix matches`() {
-        vidalDrugRepository.deleteAll()
-        vidalDrugRepository.saveAll(
-            listOf(
-                VidalDrug(name = "Aspirin", manufacturer = "Bayer", otc = true),
-                VidalDrug(name = "Aspirin Cardio", manufacturer = "Bayer", otc = true),
-                VidalDrug(name = "Baby Aspirin", manufacturer = "Generic", otc = true)
+        txTemplate.execute {
+            vidalDrugRepository.deleteAll()
+            vidalDrugRepository.saveAll(
+                listOf(
+                    VidalDrug(name = "Aspirin", manufacturer = "Bayer", otc = true),
+                    VidalDrug(name = "Aspirin Cardio", manufacturer = "Bayer", otc = true),
+                    VidalDrug(name = "Baby Aspirin", manufacturer = "Generic", otc = true)
+                )
             )
-        )
+        }
 
         val results = vidalDrugRepository.fuzzySearchByName("Aspirin", 10)
         assertTrue(results.isNotEmpty())
         assertEquals("Aspirin", results.first().name, "Exact match should be first")
+    }
+
+    @Test
+    fun `fuzzySearchByName eagerly loads formType - no LazyInitializationException`() {
+        // This test runs WITHOUT @Transactional to simulate real runtime behavior
+        // where spring.jpa.open-in-view=false causes the session to close after the query.
+        // Previously this would throw LazyInitializationException when accessing formType.name
+        val results = vidalDrugRepository.fuzzySearchByName("аспир", 10)
+        assertTrue(results.isNotEmpty())
+
+        // Access formType.name OUTSIDE any transaction — this is what the controller does
+        val formTypeName = results.first { it.formType != null }.formType?.name
+        assertNotNull(formTypeName, "FormType should be eagerly loaded and accessible outside transaction")
+        assertEquals("таблетки", formTypeName)
+    }
+
+    @Test
+    fun `service fuzzySearchByName returns results with accessible formType`() {
+        // Test through the service layer, outside a transaction, simulating controller usage
+        val results = vidalDrugService.fuzzySearchByName("аспир", 10)
+        assertTrue(results.isNotEmpty())
+
+        // Access formType.name OUTSIDE any transaction — this is exactly what the controller does
+        val drugWithForm = results.first { it.formType != null }
+        assertNotNull(drugWithForm.formType?.name, "FormType should be accessible via service results")
+    }
+
+    @Test
+    fun `service fuzzySearchByName returns empty for blank input`() {
+        val results = vidalDrugService.fuzzySearchByName("   ", 10)
+        assertTrue(results.isEmpty(), "Should return empty for blank input")
+    }
+
+    @Test
+    fun `service fuzzySearchByName sanitizes special characters`() {
+        // These special chars should not break the query
+        val results = vidalDrugService.fuzzySearchByName("аспир%", 10)
+        // Should not throw, and % should be treated as literal
+        assertNotNull(results)
     }
 }
