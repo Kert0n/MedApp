@@ -12,11 +12,11 @@ interface VidalDrugRepository : JpaRepository<VidalDrug, UUID> {
     @Query(
         value = """
         SELECT * FROM parsed_drugs 
-        WHERE LOWER(name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+        WHERE name ILIKE CONCAT('%', :searchTerm, '%')
         ORDER BY 
             CASE 
-                WHEN LOWER(name) = LOWER(:searchTerm) THEN 0
-                WHEN LOWER(name) LIKE LOWER(CONCAT(:searchTerm, '%')) THEN 1
+                WHEN name ILIKE :searchTerm THEN 0
+                WHEN name ILIKE CONCAT(:searchTerm, '%') THEN 1
                 ELSE 2
             END,
             name

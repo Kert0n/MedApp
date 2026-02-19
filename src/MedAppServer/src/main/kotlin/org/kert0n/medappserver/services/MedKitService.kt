@@ -5,6 +5,7 @@ import org.kert0n.medappserver.controller.MedKitDTO
 import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.MedKitRepository
+import org.kert0n.medappserver.db.repository.UsingRepository
 import org.kert0n.medappserver.services.security.SecurityService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -18,6 +19,7 @@ import java.util.*
 @Service
 open class MedKitService(
     private val medKitRepository: MedKitRepository,
+    private val usingRepository: UsingRepository,
     private val securityService: SecurityService,
     private val logger: Logger = LoggerFactory.getLogger(MedKitService::class.java),
     private val medKitTokenCache: Cache<String, UUID>,
@@ -30,6 +32,7 @@ open class MedKitService(
         val user: User = userService.findById(userId)
         val medKit = MedKit()
         user.medKits.add(medKit)
+        medKit.users.add(user)
         return medKitRepository.save(medKit)
     }
 
@@ -58,6 +61,12 @@ open class MedKitService(
         return medKitRepository.findByUsersId(userId)
     }
 
+    @Transactional(readOnly = true)
+    fun findSummariesByUser(userId: UUID): List<MedKitRepository.MedKitSummary> {
+        logger.debug("Finding medkit summaries for user: {}", userId)
+        return medKitRepository.findSummariesByUserId(userId)
+    }
+
     fun generateMedKitShareKey(medKit: MedKit, userId: UUID): String {
         val key = securityService.generateKey(16)
         medKitTokenCache[securityService.hashToken(key)] = medKit.id
@@ -72,7 +81,9 @@ open class MedKitService(
         logger.debug("Adding user {} to medkit {}", userId, medKitId)
 
         val medKit = findById(medKitId)
-        medKit.users.add(userService.findById(medKitId))
+        val user = userService.findById(userId)
+        medKit.users.add(user)
+        user.medKits.add(medKit)
         return medKitRepository.save(medKit)
     }
 
@@ -83,13 +94,10 @@ open class MedKitService(
         val medKit = findByIdForUser(medKitId, userId)
         val user = userService.findById(userId)
         
-        // Remove user's treatment plans for drugs in this medkit
-        val drugsInMedKit = drugService.findAllByMedKit(medKitId)
-        drugsInMedKit.forEach { drug ->
-            drug.usings.removeIf { it.user.id == userId }
-        }
+        usingRepository.deleteByUserIdAndMedKitId(userId, medKitId)
         user.medKits.remove(medKit)
-        if (medKit.users.size == 1) {
+        medKit.users.remove(user)
+        if (medKit.users.isEmpty()) {
             // This user was the last
             logger.debug("No users left in medkit {}, deleting", medKitId)
             medKitRepository.delete(medKit)
@@ -120,10 +128,9 @@ open class MedKitService(
 
     @Transactional(readOnly = true)
     fun toMedKitDTO(medKit: MedKit): MedKitDTO {
-        val drugs = drugService.findAllByMedKit(medKit.id)
         return MedKitDTO(
             id = medKit.id,
-            drugs = (drugs.map{drugService.toDrugDTO(it)}).toSet()
+            drugs = drugService.findAllByMedKitWithPlannedQuantity(medKit.id)
         )
     }
 }

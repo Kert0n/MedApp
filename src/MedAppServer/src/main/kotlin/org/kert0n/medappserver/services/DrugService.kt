@@ -6,6 +6,7 @@ import org.kert0n.medappserver.controller.DrugDTO
 import org.kert0n.medappserver.controller.DrugUpdateDTO
 import org.kert0n.medappserver.db.model.Drug
 import org.kert0n.medappserver.db.repository.DrugRepository
+import org.kert0n.medappserver.db.repository.MedKitRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
@@ -17,9 +18,7 @@ import java.util.*
 @Service
 class DrugService(
     private val drugRepository: DrugRepository,
-    private val medKitService: MedKitService,
-    private val usingService: UsingService,
-    private val userService: UserService
+    private val medKitRepository: MedKitRepository
 ) {
 
     private val logger = LoggerFactory.getLogger(DrugService::class.java)
@@ -56,7 +55,8 @@ class DrugService(
     fun create(createDTO: DrugCreateDTO, userId: UUID): Drug {
         logger.debug("Creating drug: {} for user: {}", createDTO.name, userId)
 
-        val medKit = medKitService.findByIdForUser(createDTO.medKitId, userId)
+        val medKit = medKitRepository.findByIdAndUsers(createDTO.medKitId, userId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Medkit not found or user has insufficient privileges")
         
         val drug = Drug(
             name = createDTO.name,
@@ -111,7 +111,8 @@ class DrugService(
         logger.debug("Moving drug {} to medkit {}", drugId, targetMedKitId)
         
         val drug = findByIdForUser(drugId, userId)
-        val targetMedKit = medKitService.findByIdForUser(targetMedKitId, userId)
+        val targetMedKit = medKitRepository.findByIdAndUsers(targetMedKitId, userId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Medkit not found or user has insufficient privileges")
         drug.medKit = targetMedKit
         return drugRepository.save(drug)
     }
@@ -133,17 +134,29 @@ class DrugService(
 
     @Transactional(readOnly = true)
     fun getPlannedQuantity(drugId: UUID): Double {
-        return drugRepository.findQuantity(drugId)
+        return drugRepository.findPlannedQuantityByDrugId(drugId)
     }
 
     @Transactional(readOnly = true)
     fun getAvailableQuantity(drugId: UUID): Pair<Double, Double> {
-        return drugRepository.findPlannedAndActualQuantity(drugId)
+        val summary = drugRepository.findQuantitySummaryByDrugId(drugId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found: $drugId")
+        return summary.actualQuantity to summary.plannedQuantity
     }
 
     @Transactional(readOnly = true)
     fun toDrugDTO(drug: Drug): DrugDTO {
-        val plannedQuantity = getPlannedQuantity(drug.id)
+        return toDrugDTO(drug, getPlannedQuantity(drug.id))
+    }
+
+    @Transactional(readOnly = true)
+    fun findAllByMedKitWithPlannedQuantity(medKitId: UUID): Set<DrugDTO> {
+        return drugRepository.findAllWithPlannedQuantityByMedKitId(medKitId)
+            .map { toDrugDTO(it.drug, it.plannedQuantity) }
+            .toSet()
+    }
+
+    private fun toDrugDTO(drug: Drug, plannedQuantity: Double): DrugDTO {
         return DrugDTO(
             id = drug.id,
             name = drug.name,

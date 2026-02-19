@@ -2,6 +2,8 @@ package org.kert0n.medappserver.integration
 
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Test
+import org.kert0n.medappserver.controller.ConsumeRequest
+import org.kert0n.medappserver.controller.UsingCreateDTO
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.db.repository.*
 import org.kert0n.medappserver.services.DrugService
@@ -106,7 +108,7 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         // Anna takes 2 tablets of Aspirin
-        drugService.consumeDrug(aspirin.id, 2.0, anna.id)
+        drugService.consumeDrug(aspirin.id, ConsumeRequest(2.0), anna.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -154,7 +156,8 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         // Anna shares with Bob
-        medKitService.generateMedKitShareKey(medkit.id, bob.id)
+        val shareKey = medKitService.generateMedKitShareKey(medkit, anna.id)
+        medKitService.addUserToMedKit(shareKey, bob.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -188,7 +191,8 @@ class UserStoryIntegrationTests {
         userRepository.save(bob)
         
         val medkit = medKitService.createNew(anna.id)
-        medKitService.generateMedKitShareKey(medkit.id, bob.id)
+        val shareKey = medKitService.generateMedKitShareKey(medkit, anna.id)
+        medKitService.addUserToMedKit(shareKey, bob.id)
         
         val drug = Drug(
             id = UUID.randomUUID(),
@@ -325,9 +329,9 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         // Consume all in steps
-        drugService.consumeDrug(drug.id, 10.0, user.id)
-        drugService.consumeDrug(drug.id, 10.0, user.id)
-        drugService.consumeDrug(drug.id, 10.0, user.id)
+        drugService.consumeDrug(drug.id, ConsumeRequest(10.0), user.id)
+        drugService.consumeDrug(drug.id, ConsumeRequest(10.0), user.id)
+        drugService.consumeDrug(drug.id, ConsumeRequest(10.0), user.id)
         entityManager.flush()
         entityManager.clear()
 
