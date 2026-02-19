@@ -85,9 +85,11 @@ open class MedKitService(
 
     @Transactional
     fun joinMedKitByKey(key: String, userId: UUID): MedKit {
-        val medKitId = medKitTokenCache.getOrNull(securityService.hashToken(key)) ?: throw ResponseStatusException(
+        val hashedKey = securityService.hashToken(key)
+        val medKitId = medKitTokenCache.getOrNull(hashedKey) ?: throw ResponseStatusException(
             HttpStatus.NOT_FOUND, "Your token has expired or didnt exist in first place"
         )
+        medKitTokenCache.invalidate(hashedKey)
         return addUserToMedKit(medKitId, userId)
     }
 
