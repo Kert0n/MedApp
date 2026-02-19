@@ -2,6 +2,7 @@ package org.kert0n.medappserver.integration
 
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Test
+import org.kert0n.medappserver.controller.UsingCreateDTO
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.db.repository.*
 import org.kert0n.medappserver.services.DrugService
@@ -154,7 +155,7 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         // Anna shares with Bob
-        medKitService.generateMedKitShareKey(medkit.id, bob.id)
+        medKitService.addUserToMedKit(medkit.id, bob.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -188,7 +189,7 @@ class UserStoryIntegrationTests {
         userRepository.save(bob)
         
         val medkit = medKitService.createNew(anna.id)
-        medKitService.generateMedKitShareKey(medkit.id, bob.id)
+        medKitService.addUserToMedKit(medkit.id, bob.id)
         
         val drug = Drug(
             id = UUID.randomUUID(),
