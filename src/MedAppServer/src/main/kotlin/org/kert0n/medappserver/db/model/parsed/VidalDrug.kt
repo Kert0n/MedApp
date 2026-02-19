@@ -39,14 +39,14 @@ open class VidalDrug(
     @Column(name = "name", nullable = false, length = 300)
     open var name: String,
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "form_type_id")
     open var formType: FormType? = null,
 
     @Column(name = "quantity")
     open var quantity: Int? = null,
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "quantity_unit_id")
     open var quantityUnit: QuantityUnit? = null,
 

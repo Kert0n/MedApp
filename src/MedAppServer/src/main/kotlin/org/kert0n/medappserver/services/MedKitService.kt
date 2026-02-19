@@ -1,23 +1,151 @@
 package org.kert0n.medappserver.services
 
+import com.sksamuel.aedile.core.Cache
+import org.kert0n.medappserver.controller.MedKitDTO
 import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.MedKitRepository
+import org.kert0n.medappserver.services.security.SecurityService
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
-import java.util.UUID
+import java.util.*
 
 @Service
-class MedKitService(
-    private val medKitRepository: MedKitRepository
+open class MedKitService(
+    private val medKitRepository: MedKitRepository,
+    private val securityService: SecurityService,
+    private val logger: Logger = LoggerFactory.getLogger(MedKitService::class.java),
+    private val medKitTokenCache: Cache<String, UUID>,
+    private val userService: UserService,
+    private val drugService: DrugService
 ) {
-
-    fun createNew(user: UUID): MedKit {
-        val medKit = MedKit()
+    @Transactional
+    fun createNew(userId: UUID): MedKit {
+        logger.debug("Creating new medkit for user: {}", userId)
+        val user: User = userService.findById(userId)
+        val medKit = medKitRepository.save(MedKit())
+        user.medKits.add(medKit)
         medKit.users.add(user)
-        medKitRepository.save(medKit)
         return medKit
+    }
+
+    @Transactional(readOnly = true)
+    fun findById(medKitId: UUID): MedKit {
+        logger.debug("Finding medkit by ID: {}", medKitId)
+        return medKitRepository.findByIdOrNull(medKitId) ?: throw ResponseStatusException(
+            HttpStatus.NOT_FOUND,
+            "MedKit not found"
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun findByIdForUser(medKitId: UUID, userId: UUID): MedKit {
+        logger.debug("Finding medkit {} for user {}", medKitId, userId)
+        return medKitRepository.findByIdAndUserId(medKitId, userId) ?: throw ResponseStatusException(
+            HttpStatus.NOT_FOUND,
+            "Medkit not found or user has insufficient privileges"
+        )
+
+    }
+
+    @Transactional(readOnly = true)
+    fun findAllByUser(userId: UUID): List<MedKit> {
+        logger.debug("Finding all medkits for user: {}", userId)
+        return medKitRepository.findByUsersId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun findMedKitSummaries(userId: UUID): List<Triple<UUID, Int, Int>> {
+        logger.debug("Finding medkit summaries for user: {}", userId)
+        return medKitRepository.findMedKitSummariesByUserId(userId).map { row ->
+            Triple(row[0] as UUID, row[1] as Int, row[2] as Int)
+        }
+    }
+
+    fun generateMedKitShareKey(medKitId: UUID, userId: UUID): String {
+        // Checking access
+        findByIdForUser(medKitId, userId)
+        val key = securityService.generateKey(16)
+        medKitTokenCache[securityService.hashToken(key)] = medKitId
+        return key
+    }
+
+    @Transactional
+    fun addUserToMedKit(medKitId: UUID, userId: UUID): MedKit {
+        logger.debug("Adding user {} to medkit {}", userId, medKitId)
+        val medKit = findById(medKitId)
+        val user = userService.findById(userId)
+        if (medKit.users.contains(user)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists")
+        }
+        medKit.users.add(user)
+        user.medKits.add(medKit)
+        return medKitRepository.save(medKit)
+    }
+
+    @Transactional
+    fun joinMedKitByKey(key: String, userId: UUID): MedKit {
+        val hashedKey = securityService.hashToken(key)
+        val medKitId = medKitTokenCache.getOrNull(hashedKey) ?: throw ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Share key has expired or does not exist"
+        )
+        return addUserToMedKit(medKitId, userId)
+    }
+
+    @Transactional
+    fun removeUserFromMedKit(medKitId: UUID, userId: UUID, deleteAllDrugs: Boolean = false) {
+        logger.debug("Removing user {} from medkit {}, deleteAllDrugs: {}", userId, medKitId, deleteAllDrugs)
+        
+        val medKit = findByIdForUser(medKitId, userId)
+        val user = userService.findById(userId)
+        
+        // Remove user's treatment plans for drugs in this medkit
+        val drugsInMedKit = drugService.findAllByMedKit(medKitId)
+        drugsInMedKit.forEach { drug ->
+            drug.usings.removeIf { it.user.id == userId }
+        }
+        user.medKits.remove(medKit)
+        medKit.users.remove(user)
+        if (medKit.users.isEmpty()) {
+            // This user was the last
+            logger.debug("No users left in medkit {}, deleting", medKitId)
+            medKitRepository.delete(medKit)
+        } else {
+            medKitRepository.save(medKit)
+        }
+    }
+
+    @Transactional
+    fun delete(medKitId: UUID, userId: UUID, transferToMedKitId: UUID? = null) {
+        logger.debug("Deleting medkit {} by user {}, transfer to: {}", medKitId, userId, transferToMedKitId)
+        
+        val medKit = findByIdForUser(medKitId, userId)
+        
+        if (transferToMedKitId != null) {
+            val targetMedKit = findByIdForUser(transferToMedKitId, userId)
+            
+            // Transfer all drugs to target medkit
+            val drugs = drugService.findAllByMedKit(medKitId)
+            drugs.forEach { drug ->
+                drugService.moveDrug(drug.id, transferToMedKitId, userId)
+            }
+        }
+        
+        // Remove this user from medkit (will delete if last user)
+        removeUserFromMedKit(medKitId, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun toMedKitDTO(medKit: MedKit): MedKitDTO {
+        val drugs = drugService.findAllByMedKit(medKit.id)
+        return MedKitDTO(
+            id = medKit.id,
+            drugs = (drugs.map{drugService.toDrugDTO(it)}).toSet()
+        )
     }
 }

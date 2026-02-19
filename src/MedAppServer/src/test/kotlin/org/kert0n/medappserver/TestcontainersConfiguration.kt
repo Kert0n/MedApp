@@ -13,6 +13,7 @@ class TestcontainersConfiguration {
     @ServiceConnection
     fun postgresContainer(): PostgreSQLContainer {
         return PostgreSQLContainer(DockerImageName.parse("postgres:latest"))
+            .withInitScript("init-pg-trgm.sql")
     }
 
 }

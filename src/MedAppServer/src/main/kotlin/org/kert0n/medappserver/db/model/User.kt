@@ -30,6 +30,8 @@ class User(
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     var usings: MutableSet<Using> = mutableSetOf()
 ) : UserDetails {
+
+    
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -56,11 +58,4 @@ class User(
     }
 
 }
-
-data class UserDto(
-    val id: UUID,
-    val medKits: Set<MedKitDTO>
-)
-
-
 
