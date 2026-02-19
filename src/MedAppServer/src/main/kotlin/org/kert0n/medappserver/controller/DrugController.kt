@@ -100,6 +100,14 @@ class DrugController(
 
     @GetMapping("/quantity/{id}")
     @Operation(summary = "Get drug quantity info", description = "Returns actual, planned, and available quantities")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Quantity info retrieved",
+            content = [Content(schema = Schema(implementation = QuantityInfo::class))]
+        ),
+        ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
+    ])
     fun getDrugQuantityInfo(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID
@@ -112,6 +120,15 @@ class DrugController(
 
     @PutMapping("/consume/{id}")
     @Operation(summary = "Consume drug", description = "Reduces drug quantity by the consumed amount")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Drug consumed",
+            content = [Content(schema = Schema(implementation = DrugDTO::class))]
+        ),
+        ApiResponse(responseCode = "400", description = "Invalid quantity", content = [Content()]),
+        ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
+    ])
     fun consumeDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
@@ -125,6 +142,15 @@ class DrugController(
 
     @PutMapping("/move/{id}")
     @Operation(summary = "Move drug to another medicine kit", description = "Transfers a drug between medicine kits")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Drug moved",
+            content = [Content(schema = Schema(implementation = DrugDTO::class))]
+        ),
+        ApiResponse(responseCode = "400", description = "Invalid target medkit", content = [Content()]),
+        ApiResponse(responseCode = "404", description = "Drug or medkit not found", content = [Content()])
+    ])
     fun moveDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
@@ -138,6 +164,14 @@ class DrugController(
 
     @GetMapping("/template/search")
     @Operation(summary = "Search drug templates", description = "Fuzzy search for drug templates in the database")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Templates found",
+            content = [Content(schema = Schema(implementation = DrugTemplateDTO::class))]
+        ),
+        ApiResponse(responseCode = "400", description = "Invalid search term", content = [Content()])
+    ])
     fun searchDrugTemplates(
         authentication: Authentication,
         @Parameter(description = "Search term") @RequestParam searchTerm: String,
@@ -158,6 +192,14 @@ class DrugController(
 
     @GetMapping("/template/{id}")
     @Operation(summary = "Get drug template by ID", description = "Retrieves a drug template from the database")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Template retrieved",
+            content = [Content(schema = Schema(implementation = DrugTemplateDTO::class))]
+        ),
+        ApiResponse(responseCode = "404", description = "Template not found", content = [Content()])
+    ])
     fun getDrugTemplate(
         authentication: Authentication,
         @Parameter(description = "Template ID")
@@ -318,4 +360,3 @@ data class DrugUpdateDTO(
     @Schema(description = "Description")
     val description: String? = null
 )
-

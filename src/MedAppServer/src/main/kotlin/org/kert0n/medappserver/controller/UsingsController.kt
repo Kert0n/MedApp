@@ -1,5 +1,12 @@
 package org.kert0n.medappserver.controller
 
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotNull
@@ -9,13 +16,13 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
-import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import java.time.Instant
 import java.util.*
 
 @RestController
 @RequestMapping("/using")
+@Tag(name = "Treatment Plans", description = "Endpoints for treatment plans and intake tracking")
 class UsingsController(
     private val usingService: UsingService,
     private val logger: Logger = LoggerFactory.getLogger(UsingsController::class.java)
@@ -24,6 +31,15 @@ class UsingsController(
 
 
     @GetMapping
+    @Operation(summary = "Get all treatment plans", description = "Returns all planned drug usages for the user.")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Treatment plans retrieved",
+            content = [Content(schema = Schema(implementation = UsingDTO::class))]
+        ),
+        ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
+    ])
     fun getUsings(authentication: Authentication): List<UsingDTO> {
         logger.debug("GET /using by user {}", authentication.userId)
         val usings = usingService.findAllByUser(authentication.userId)
@@ -31,7 +47,19 @@ class UsingsController(
     }
 
     @GetMapping("/drug/{drugId}")
-    fun getSpecificUsing(authentication: Authentication, @PathVariable drugId: UUID): UsingDTO? {
+    @Operation(summary = "Get treatment plan by drug", description = "Returns a treatment plan for a specific drug.")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Treatment plan retrieved",
+            content = [Content(schema = Schema(implementation = UsingDTO::class))]
+        ),
+        ApiResponse(responseCode = "404", description = "Treatment plan not found", content = [Content()])
+    ])
+    fun getSpecificUsing(
+        authentication: Authentication,
+        @Parameter(description = "Drug ID") @PathVariable drugId: UUID
+    ): UsingDTO? {
         logger.debug("GET /using/drug/{} by user {}", drugId, authentication.userId)
         val using = usingService.findByUserAndDrug(authentication.userId, drugId)
         return using?.let { usingService.toUsingDTO(it) }
@@ -39,8 +67,19 @@ class UsingsController(
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create treatment plan", description = "Creates a planned usage for a drug.")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "201",
+            description = "Treatment plan created",
+            content = [Content(schema = Schema(implementation = UsingDTO::class))]
+        ),
+        ApiResponse(responseCode = "400", description = "Invalid input", content = [Content()]),
+        ApiResponse(responseCode = "409", description = "Treatment plan already exists", content = [Content()])
+    ])
     fun createUsing(
         authentication: Authentication,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Treatment plan details")
         @Valid @RequestBody createDTO: UsingCreateDTO
     ): UsingDTO {
         logger.debug("POST /using by user {} for drug {}", authentication.userId, createDTO.drugId)
@@ -49,9 +88,20 @@ class UsingsController(
     }
 
     @PutMapping("/drug/{drugId}")
+    @Operation(summary = "Update treatment plan", description = "Updates the planned amount for a drug.")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Treatment plan updated",
+            content = [Content(schema = Schema(implementation = UsingDTO::class))]
+        ),
+        ApiResponse(responseCode = "400", description = "Invalid input", content = [Content()]),
+        ApiResponse(responseCode = "404", description = "Treatment plan not found", content = [Content()])
+    ])
     fun updateUsing(
         authentication: Authentication,
-        @PathVariable drugId: UUID,
+        @Parameter(description = "Drug ID") @PathVariable drugId: UUID,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Updated treatment plan")
         @Valid @RequestBody updateDTO: UsingUpdateDTO
     ): UsingDTO {
         logger.debug("PUT /using/drug/{} by user {}", drugId, authentication.userId)
@@ -60,9 +110,20 @@ class UsingsController(
     }
 
     @PostMapping("/drug/{drugId}/intake")
+    @Operation(summary = "Record intake", description = "Registers a drug intake and updates the planned amount.")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Intake recorded",
+            content = [Content(schema = Schema(implementation = UsingDTO::class))]
+        ),
+        ApiResponse(responseCode = "400", description = "Invalid intake amount", content = [Content()]),
+        ApiResponse(responseCode = "404", description = "Treatment plan not found", content = [Content()])
+    ])
     fun recordRegularUsing(
         authentication: Authentication,
-        @PathVariable drugId: UUID,
+        @Parameter(description = "Drug ID") @PathVariable drugId: UUID,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Intake details")
         @Valid @RequestBody intakeRequest: IntakeRequest
     ): UsingDTO {
         logger.debug("POST /using/drug/{}/intake by user {}, quantity: {}",
@@ -73,36 +134,58 @@ class UsingsController(
 
     @DeleteMapping("/drug/{drugId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun deleteTreatmentPlan(authentication: Authentication, @PathVariable drugId: UUID) {
+    @Operation(summary = "Delete treatment plan", description = "Deletes a planned usage for a drug.")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "204", description = "Treatment plan deleted"),
+        ApiResponse(responseCode = "404", description = "Treatment plan not found", content = [Content()])
+    ])
+    fun deleteTreatmentPlan(
+        authentication: Authentication,
+        @Parameter(description = "Drug ID") @PathVariable drugId: UUID
+    ) {
         logger.debug("DELETE /using/drug/{} by user {}", drugId, authentication.userId)
         usingService.deleteTreatmentPlan(authentication.userId, drugId)
     }
 }
 
+@Schema(description = "Intake request")
 data class IntakeRequest(
     @NotNull
     @DecimalMin("0.0")
+    @Schema(description = "Amount consumed", example = "1.0", minimum = "0")
     val quantityConsumed: Double
 )
 
+@Schema(description = "Treatment plan information")
 data class UsingDTO(
+    @Schema(description = "User identifier")
     val userId: UUID,
+    @Schema(description = "Drug identifier")
     val drugId: UUID,
+    @Schema(description = "Planned total amount for the course")
     val plannedAmount: Double,
+    @Schema(description = "Date when the plan was created")
     val createdAt: Instant,
+    @Schema(description = "Date of last modification")
     val lastModified: Instant
 )
+
+@Schema(description = "Create treatment plan request")
 data class UsingCreateDTO(
     @NotNull
+    @Schema(description = "Drug identifier")
     val drugId: UUID,
 
     @NotNull
     @DecimalMin("0.0")
+    @Schema(description = "Planned amount", example = "20.0", minimum = "0")
     val plannedAmount: Double
 )
 
+@Schema(description = "Update treatment plan request")
 data class UsingUpdateDTO(
     @NotNull
     @DecimalMin("0.0")
+    @Schema(description = "Planned amount", example = "20.0", minimum = "0")
     val plannedAmount: Double
 )

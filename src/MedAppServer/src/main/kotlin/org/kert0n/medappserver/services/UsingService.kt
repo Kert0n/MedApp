@@ -55,7 +55,7 @@ class UsingService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "using already exists for this user and drug")
         }
         
-        // Validate planned quantity
+        // Validate planned quantity against currently reserved amounts to avoid overbooking stock.
         val currentPlanned = drugService.getPlannedQuantity(createDTO.drugId)
         val availableQuantity = drug.quantity - currentPlanned
         
@@ -88,6 +88,7 @@ class UsingService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Planned amount must be positive")
         }
         val using = findByUserAndDrug(userId, drugId)
+        // Exclude the current plan when checking availability.
         val totalPlanned = drugService.getPlannedQuantity(using.drug.id)
         val otherPlanned = totalPlanned - using.plannedAmount
         val availableQuantity = using.drug.quantity - otherPlanned

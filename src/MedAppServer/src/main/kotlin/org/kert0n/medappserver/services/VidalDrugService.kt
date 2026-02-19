@@ -14,6 +14,7 @@ class VidalDrugService(
         if (searchTerm.isBlank()) {
             return emptyList()
         }
+        // Escape LIKE wildcards and backslashes to keep fuzzy search predictable and safe.
         val sanitized = searchTerm.trim()
             .replace("\\", "\\\\")
             .replace("%", "\\%")

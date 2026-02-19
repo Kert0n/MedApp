@@ -46,6 +46,7 @@ class SecurityService(
         ).tokenValue
     }
 
+    // Track successful registrations per IP to throttle automated registrations.
     fun validateRequest(ip: String): Boolean =
         (successfulRegistrationsCache.getOrNull(ip) ?: 0) <= registrationNumber
 

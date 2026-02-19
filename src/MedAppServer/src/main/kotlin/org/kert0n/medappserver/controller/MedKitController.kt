@@ -89,6 +89,14 @@ class MedKitController(
 
     @GetMapping
     @Operation(summary = "Get all medkits", description = "Returns summary info for all medkits accessible to the user")
+    @ApiResponses(value = [
+        ApiResponse(
+            responseCode = "200",
+            description = "Medkits retrieved",
+            content = [Content(schema = Schema(implementation = MedKitSummaryDTO::class))]
+        ),
+        ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
+    ])
     fun getAllMedKits(authentication: Authentication): List<MedKitSummaryDTO> {
         logger.debug("GET /med-kit by user {}", authentication.userId)
         return medKitService.findMedKitSummaries(authentication.userId).map {
@@ -131,6 +139,10 @@ class MedKitController(
     @DeleteMapping("/{id}/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Leave medkit", description = "Removes the authenticated user from the medkit")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "204", description = "User removed from medkit"),
+        ApiResponse(responseCode = "404", description = "Medkit not found", content = [Content()])
+    ])
     fun leaveMedKit(
         authentication: Authentication,
         @Parameter(description = "Medkit ID") @PathVariable id: UUID
@@ -142,6 +154,10 @@ class MedKitController(
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete medkit", description = "Deletes a medkit or removes the user if others remain")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "204", description = "Medkit deleted"),
+        ApiResponse(responseCode = "404", description = "Medkit not found", content = [Content()])
+    ])
     fun deleteMedKit(
         authentication: Authentication,
         @Parameter(description = "Medkit ID") @PathVariable id: UUID,

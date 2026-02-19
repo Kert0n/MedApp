@@ -71,6 +71,7 @@ open class MedKitService(
         // Checking access
         findByIdForUser(medKitId, userId)
         val key = securityService.generateKey(16)
+        // Cache only a hash so the raw share key is never stored server-side.
         medKitTokenCache[securityService.hashToken(key)] = medKitId
         return key
     }
@@ -104,7 +105,7 @@ open class MedKitService(
         val medKit = findByIdForUser(medKitId, userId)
         val user = userService.findById(userId)
         
-        // Remove user's treatment plans for drugs in this medkit
+        // Remove user's treatment plans for drugs in this medkit to prevent orphaned reservations.
         val drugsInMedKit = drugService.findAllByMedKit(medKitId)
         drugsInMedKit.forEach { drug ->
             drug.usings.removeIf { it.user.id == userId }

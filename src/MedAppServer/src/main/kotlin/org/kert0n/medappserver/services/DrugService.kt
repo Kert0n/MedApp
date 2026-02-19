@@ -156,6 +156,7 @@ class DrugService(
     private fun handleQuantityReduction(drug: Drug, userId: UUID) {
         logger.debug("Handling quantity reduction for drug: {}", drug.id)
 
+        // Reduce planned amounts proportionally when stock drops below reserved quantity.
         val totalPlanned = getPlannedQuantity(drug.id)
         if (totalPlanned <= drug.quantity) return
         logger.warn("Drug {} quantity {} is less than planned {}", drug.id, drug.quantity, totalPlanned)
