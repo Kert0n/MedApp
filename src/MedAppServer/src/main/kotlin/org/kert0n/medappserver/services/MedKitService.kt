@@ -1,57 +1,55 @@
 package org.kert0n.medappserver.services
 
+import com.sksamuel.aedile.core.Cache
+import org.kert0n.medappserver.controller.MedKitDTO
 import org.kert0n.medappserver.db.model.MedKit
-import org.kert0n.medappserver.db.model.MedKitDTO
 import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.MedKitRepository
-import org.kert0n.medappserver.db.repository.UserRepository
+import org.kert0n.medappserver.services.security.SecurityService
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
-import java.util.UUID
+import java.util.*
 
 @Service
-class MedKitService(
+open class MedKitService(
     private val medKitRepository: MedKitRepository,
-    private val userRepository: UserRepository,
+    private val securityService: SecurityService,
+    private val logger: Logger = LoggerFactory.getLogger(MedKitService::class.java),
+    private val medKitTokenCache: Cache<String, UUID>,
+    private val userService: UserService,
     private val drugService: DrugService
 ) {
-
-    private val logger = LoggerFactory.getLogger(MedKitService::class.java)
-
     @Transactional
     fun createNew(userId: UUID): MedKit {
         logger.debug("Creating new medkit for user: {}", userId)
-        
-        val user = userRepository.findById(userId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
-        
+        val user: User = userService.findById(userId)
         val medKit = MedKit()
-        
-        // Используем helper method для правильной синхронизации обеих сторон
-        user.addMedKit(medKit)
-        
+        user.medKits.add(medKit)
         return medKitRepository.save(medKit)
     }
 
     @Transactional(readOnly = true)
     fun findById(medKitId: UUID): MedKit {
         logger.debug("Finding medkit by ID: {}", medKitId)
-        return medKitRepository.findById(medKitId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "MedKit not found") }
+        return medKitRepository.findByIdOrNull(medKitId) ?: throw ResponseStatusException(
+            HttpStatus.NOT_FOUND,
+            "MedKit not found"
+        )
     }
 
     @Transactional(readOnly = true)
     fun findByIdForUser(medKitId: UUID, userId: UUID): MedKit {
         logger.debug("Finding medkit {} for user {}", medKitId, userId)
-        
-        val medKit = findById(medKitId)
-        if (!medKit.users.any { it.id == userId }) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "User does not have access to this medkit")
-        }
-        return medKit
+        return medKitRepository.findByIdAndUsers(medKitId, userId) ?: throw ResponseStatusException(
+            HttpStatus.NOT_FOUND,
+            "Medkit not found or user has insufficient privileges"
+        )
+
     }
 
     @Transactional(readOnly = true)
@@ -60,22 +58,21 @@ class MedKitService(
         return medKitRepository.findByUsersId(userId)
     }
 
+    fun generateMedKitShareKey(medKit: MedKit, userId: UUID): String {
+        val key = securityService.generateKey(16)
+        medKitTokenCache[securityService.hashToken(key)] = medKit.id
+        return key
+    }
+
     @Transactional
-    fun addUserToMedKit(medKitId: UUID, userId: UUID): MedKit {
+    fun addUserToMedKit(key: String, userId: UUID): MedKit {
+        val medKitId = medKitTokenCache.getOrNull(securityService.hashToken(key)) ?: throw ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Your token has expired or didnt exist in first place"
+        )
         logger.debug("Adding user {} to medkit {}", userId, medKitId)
-        
+
         val medKit = findById(medKitId)
-        val user = userRepository.findById(userId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
-        
-        if (medKit.users.contains(user)) {
-            logger.warn("User {} already has access to medkit {}", userId, medKitId)
-            return medKit
-        }
-        
-        // Используем helper method для правильной синхронизации обеих сторон
-        user.addMedKit(medKit)
-        
+        medKit.users.add(userService.findById(medKitId))
         return medKitRepository.save(medKit)
     }
 
@@ -84,21 +81,16 @@ class MedKitService(
         logger.debug("Removing user {} from medkit {}, deleteAllDrugs: {}", userId, medKitId, deleteAllDrugs)
         
         val medKit = findByIdForUser(medKitId, userId)
-        val user = userRepository.findById(userId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
+        val user = userService.findById(userId)
         
         // Remove user's treatment plans for drugs in this medkit
         val drugsInMedKit = drugService.findAllByMedKit(medKitId)
         drugsInMedKit.forEach { drug ->
             drug.usings.removeIf { it.user.id == userId }
         }
-        
-        // Используем helper method для правильной синхронизации обеих сторон
-        // КРИТИЧНО: обе стороны должны быть обновлены для корректной проверки isEmpty() ниже
-        user.removeMedKit(medKit)
-        
-        // Теперь проверка isEmpty() будет корректной, т.к. мы обновили обе стороны
-        if (medKit.users.isEmpty()) {
+        user.medKits.remove(medKit)
+        if (medKit.users.size == 1) {
+            // This user was the last
             logger.debug("No users left in medkit {}, deleting", medKitId)
             medKitRepository.delete(medKit)
         } else {
@@ -131,7 +123,7 @@ class MedKitService(
         val drugs = drugService.findAllByMedKit(medKit.id)
         return MedKitDTO(
             id = medKit.id,
-            drugs = drugs.map { drugService.toDrugDTO(it) }.toSet()
+            drugs = (drugs.map{drugService.toDrugDTO(it)}).toSet()
         )
     }
 }

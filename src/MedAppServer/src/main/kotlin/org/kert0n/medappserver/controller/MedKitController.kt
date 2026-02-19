@@ -2,9 +2,9 @@ package org.kert0n.medappserver.controller
 
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotNull
-import org.kert0n.medappserver.db.model.MedKitDTO
 import org.kert0n.medappserver.services.MedKitService
 import org.kert0n.medappserver.services.userId
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -14,10 +14,29 @@ import java.util.*
 @RestController
 @RequestMapping("/med-kit")
 class MedKitController(
-    private val medKitService: MedKitService
+    private val medKitService: MedKitService,
+    private val logger: Logger = LoggerFactory.getLogger(MedKitController::class.java)
 ) {
+    data class MedKitCreatedResponse(
+        @NotNull
+        val id: UUID
+    )
 
-    private val logger = LoggerFactory.getLogger(MedKitController::class.java)
+    data class MedKitSummaryDTO(
+        @NotNull
+        val id: UUID,
+        @NotNull
+        val userCount: Int,
+        @NotNull
+        val drugCount: Int
+    )
+
+    data class AddUserRequest(
+        @NotNull
+        val userId: UUID
+    )
+
+
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -41,17 +60,17 @@ class MedKitController(
         return medKits.map { MedKitSummaryDTO(it.id, it.users.size, it.drugs.size) }
     }
 
-    @PostMapping("/{id}/share")
-    fun addUserToMedKit(
+    @PostMapping("/{medKitId}/share")
+    fun generateKeyToMedKit(
         authentication: Authentication,
-        @PathVariable id: UUID,
+        @PathVariable medKitId: UUID,
         @Valid @RequestBody request: AddUserRequest
-    ): MedKitDTO {
-        logger.debug("POST /med-kit/{}/share by user {}, adding user {}", id, authentication.userId, request.userId)
-        // Verify the requester has access to this medkit
-        medKitService.findByIdForUser(id, authentication.userId)
-        val medKit = medKitService.addUserToMedKit(id, request.userId)
-        return medKitService.toMedKitDTO(medKit)
+    ): String {
+        logger.debug("POST /med-kit/{}/share by user {}", medKitId, authentication.userId)
+        return medKitService.generateMedKitShareKey(
+            medKitService.findByIdForUser(medKitId, authentication.userId),
+            authentication.userId
+        )
     }
 
     @DeleteMapping("/{id}/leave")
@@ -73,17 +92,7 @@ class MedKitController(
     }
 }
 
-data class MedKitCreatedResponse(
-    val id: UUID
-)
-
-data class MedKitSummaryDTO(
+data class MedKitDTO(
     val id: UUID,
-    val userCount: Int,
-    val drugCount: Int
-)
-
-data class AddUserRequest(
-    @field:NotNull
-    val userId: UUID
+    val drugs: Set<DrugDTO>
 )
