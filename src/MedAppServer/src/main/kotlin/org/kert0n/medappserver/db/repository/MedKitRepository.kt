@@ -8,7 +8,6 @@ import java.util.*
 
 interface MedKitRepository: JpaRepository<MedKit, UUID> {
     
-    // JPQL - explicit join condition
     @Query("""
         SELECT mk FROM MedKit mk
         JOIN mk.users u
@@ -16,7 +15,6 @@ interface MedKitRepository: JpaRepository<MedKit, UUID> {
     """)
     fun findByUsersId(@Param("userId") userId: UUID): List<MedKit>
 
-    // JPQL with fetch for eager loading drugs
     @Query("""
         SELECT mk FROM MedKit mk
         LEFT JOIN FETCH mk.drugs
@@ -24,12 +22,25 @@ interface MedKitRepository: JpaRepository<MedKit, UUID> {
     """)
     fun findByIdWithDrugs(@Param("id") id: UUID): MedKit?
 
-    // JPQL with fetch for eager loading users
     @Query("""
         SELECT mk FROM MedKit mk
         LEFT JOIN FETCH mk.users
         WHERE mk.id = :id
     """)
     fun findByIdWithUsers(@Param("id") id: UUID): MedKit?
-    fun findByIdAndUsers(id: UUID, userId: UUID): MedKit?
+
+    @Query("""
+        SELECT mk FROM MedKit mk
+        JOIN mk.users u
+        WHERE mk.id = :id AND u.id = :userId
+    """)
+    fun findByIdAndUserId(@Param("id") id: UUID, @Param("userId") userId: UUID): MedKit?
+
+    @Query("""
+        SELECT mk.id, SIZE(mk.users), SIZE(mk.drugs)
+        FROM MedKit mk
+        JOIN mk.users u
+        WHERE u.id = :userId
+    """)
+    fun findMedKitSummariesByUserId(@Param("userId") userId: UUID): List<Array<Any>>
 }

@@ -1,12 +1,12 @@
 package org.kert0n.medappserver.services
 
-import org.kert0n.medappserver.controller.ConsumeRequest
-import org.kert0n.medappserver.controller.DrugCreateDTO
 import org.kert0n.medappserver.controller.DrugDTO
+import org.kert0n.medappserver.controller.DrugCreateDTO
 import org.kert0n.medappserver.controller.DrugUpdateDTO
 import org.kert0n.medappserver.db.model.Drug
 import org.kert0n.medappserver.db.repository.DrugRepository
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Lazy
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -17,8 +17,7 @@ import java.util.*
 @Service
 class DrugService(
     private val drugRepository: DrugRepository,
-    private val medKitService: MedKitService,
-    private val usingService: UsingService,
+    @Lazy private val medKitService: MedKitService,
     private val userService: UserService
 ) {
 
@@ -117,28 +116,23 @@ class DrugService(
     }
 
     @Transactional
-    fun consumeDrug(drugId: UUID, consumeRequest: ConsumeRequest, userId: UUID): Drug {
-        logger.debug("Consuming {} of drug {}", consumeRequest.quantity, drugId)
+    fun consumeDrug(drugId: UUID, quantity: Double, userId: UUID): Drug {
+        logger.debug("Consuming {} of drug {}", quantity, drugId)
         
         val drug = findByIdForUser(drugId, userId)
 
-        if (consumeRequest.quantity > drug.quantity) {
+        if (quantity > drug.quantity) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient quantity available")
         }
 
-        drug.quantity -= consumeRequest.quantity
+        drug.quantity -= quantity
         handleQuantityReduction(drug, userId)
         return drugRepository.save(drug)
     }
 
     @Transactional(readOnly = true)
     fun getPlannedQuantity(drugId: UUID): Double {
-        return drugRepository.findQuantity(drugId)
-    }
-
-    @Transactional(readOnly = true)
-    fun getAvailableQuantity(drugId: UUID): Pair<Double, Double> {
-        return drugRepository.findPlannedAndActualQuantity(drugId)
+        return drugRepository.sumPlannedAmount(drugId)
     }
 
     @Transactional(readOnly = true)
@@ -163,7 +157,7 @@ class DrugService(
         logger.debug("Handling quantity reduction for drug: {}", drug.id)
 
         val totalPlanned = getPlannedQuantity(drug.id)
-        if (totalPlanned < drug.quantity) return
+        if (totalPlanned <= drug.quantity) return
         logger.warn("Drug {} quantity {} is less than planned {}", drug.id, drug.quantity, totalPlanned)
         val reduceFactor = drug.quantity / totalPlanned
         drug.usings.forEach { it.plannedAmount *= reduceFactor }

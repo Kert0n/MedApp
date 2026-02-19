@@ -1,6 +1,5 @@
 package org.kert0n.medappserver.services
 
-import org.kert0n.medappserver.controller.ConsumeRequest
 import org.kert0n.medappserver.controller.UsingCreateDTO
 import org.kert0n.medappserver.controller.UsingDTO
 import org.kert0n.medappserver.controller.UsingUpdateDTO
@@ -89,7 +88,8 @@ class UsingService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Planned amount must be positive")
         }
         val using = findByUserAndDrug(userId, drugId)
-        val otherPlanned = drugService.getPlannedQuantity(using.drug.id)
+        val totalPlanned = drugService.getPlannedQuantity(using.drug.id)
+        val otherPlanned = totalPlanned - using.plannedAmount
         val availableQuantity = using.drug.quantity - otherPlanned
         
         if (updateDTO.plannedAmount > availableQuantity) {
@@ -124,7 +124,7 @@ class UsingService(
         }
         
         // Reduce drug quantity
-        drugService.consumeDrug(drugId, ConsumeRequest(quantityConsumed), userId)
+        drugService.consumeDrug(drugId, quantityConsumed, userId)
         
         // Update planned amount
         using.plannedAmount = maxOf(0.0, using.plannedAmount - quantityConsumed)
