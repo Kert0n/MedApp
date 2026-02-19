@@ -154,7 +154,7 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         // Anna shares with Bob
-        medKitService.addUserToMedKit(medkit.id, bob.id)
+        medKitService.generateMedKitShareKey(medkit.id, bob.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -188,7 +188,7 @@ class UserStoryIntegrationTests {
         userRepository.save(bob)
         
         val medkit = medKitService.createNew(anna.id)
-        medKitService.addUserToMedKit(medkit.id, bob.id)
+        medKitService.generateMedKitShareKey(medkit.id, bob.id)
         
         val drug = Drug(
             id = UUID.randomUUID(),

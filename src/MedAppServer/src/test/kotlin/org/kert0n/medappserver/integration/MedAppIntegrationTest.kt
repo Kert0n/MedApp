@@ -1,5 +1,6 @@
 package org.kert0n.medappserver.integration
 
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.services.*
@@ -7,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
-import org.junit.jupiter.api.Assertions.*
 import java.util.*
 
 @SpringBootTest
@@ -75,7 +75,7 @@ class MedAppIntegrationTest {
 
         // Create second user and add to medkit
         val user2 = userService.registerNewUser(UUID.randomUUID(), "password2")
-        medKitService.addUserToMedKit(medKit.id, user2.id)
+        medKitService.generateMedKitShareKey(medKit.id, user2.id)
 
         // Verify both users have access
         val medKitsUser1 = medKitService.findAllByUser(user1.id)
