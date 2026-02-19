@@ -56,8 +56,9 @@ class MedKitController(
     @GetMapping
     fun getAllMedKits(authentication: Authentication): List<MedKitSummaryDTO> {
         logger.debug("GET /med-kit by user {}", authentication.userId)
-        val medKits = medKitService.findAllByUser(authentication.userId)
-        return medKits.map { MedKitSummaryDTO(it.id, it.users.size, it.drugs.size) }
+        return medKitService.findMedKitSummaries(authentication.userId).map {
+            MedKitSummaryDTO(it.first, it.second, it.third)
+        }
     }
 
     @PostMapping("/{medKitId}/share")
@@ -67,10 +68,8 @@ class MedKitController(
         @Valid @RequestBody request: AddUserRequest
     ): String {
         logger.debug("POST /med-kit/{}/share by user {}", medKitId, authentication.userId)
-        return medKitService.generateMedKitShareKey(
-            medKitService.findByIdForUser(medKitId, authentication.userId),
-            authentication.userId
-        )
+        medKitService.findByIdForUser(medKitId, authentication.userId)
+        return medKitService.generateMedKitShareKey(medKitId, authentication.userId)
     }
 
     @DeleteMapping("/{id}/leave")

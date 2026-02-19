@@ -2,6 +2,8 @@ package org.kert0n.medappserver.integration
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import org.kert0n.medappserver.controller.DrugCreateDTO
+import org.kert0n.medappserver.controller.UsingCreateDTO
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.services.*
 import org.springframework.beans.factory.annotation.Autowired
@@ -30,7 +32,7 @@ class MedAppIntegrationTest {
     @Test
     fun `complete workflow - create user, medkit, drug, and treatment plan`() {
         // 1. Create user
-        val user = userService.registerNewUser(UUID.randomUUID(), "password123")
+        val user = userService.registerNewUser(UUID.randomUUID(), "password123", "127.0.0.1")
         assertNotNull(user.id)
 
         // 2. Create medkit
@@ -70,12 +72,12 @@ class MedAppIntegrationTest {
     @Test
     fun `shared medkit workflow - multiple users`() {
         // Create first user and medkit
-        val user1 = userService.registerNewUser(UUID.randomUUID(), "password1")
+        val user1 = userService.registerNewUser(UUID.randomUUID(), "password1", "127.0.0.1")
         val medKit = medKitService.createNew(user1.id)
 
         // Create second user and add to medkit
-        val user2 = userService.registerNewUser(UUID.randomUUID(), "password2")
-        medKitService.generateMedKitShareKey(medKit.id, user2.id)
+        val user2 = userService.registerNewUser(UUID.randomUUID(), "password2", "127.0.0.2")
+        medKitService.addUserToMedKit(medKit.id, user2.id)
 
         // Verify both users have access
         val medKitsUser1 = medKitService.findAllByUser(user1.id)
@@ -87,7 +89,7 @@ class MedAppIntegrationTest {
 
     @Test
     fun `insufficient quantity prevents treatment plan creation`() {
-        val user = userService.registerNewUser(UUID.randomUUID(), "password")
+        val user = userService.registerNewUser(UUID.randomUUID(), "password", "127.0.0.3")
         val medKit = medKitService.createNew(user.id)
         
         val drug = drugService.create(
