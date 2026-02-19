@@ -8,17 +8,20 @@ import java.util.*
 
 interface VidalDrugRepository : JpaRepository<VidalDrug, UUID> {
     
-    // Native PostgreSQL fuzzy search using trigram similarity
+    // Native PostgreSQL fuzzy search using pg_trgm trigram similarity + ILIKE
     @Query(
         value = """
         SELECT * FROM parsed_drugs 
-        WHERE LOWER(name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+        WHERE name ILIKE CONCAT('%', :searchTerm, '%')
+           OR similarity(LOWER(name), LOWER(:searchTerm)) > 0.3
         ORDER BY 
             CASE 
                 WHEN LOWER(name) = LOWER(:searchTerm) THEN 0
-                WHEN LOWER(name) LIKE LOWER(CONCAT(:searchTerm, '%')) THEN 1
-                ELSE 2
+                WHEN name ILIKE CONCAT(:searchTerm, '%') THEN 1
+                WHEN name ILIKE CONCAT('%', :searchTerm, '%') THEN 2
+                ELSE 3
             END,
+            similarity(LOWER(name), LOWER(:searchTerm)) DESC,
             name
         LIMIT :limit
         """,

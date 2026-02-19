@@ -14,7 +14,11 @@ class VidalDrugService(
         if (searchTerm.isBlank()) {
             return emptyList()
         }
-        return vidalDrugRepository.fuzzySearchByName(searchTerm.trim(), limit)
+        val sanitized = searchTerm.trim()
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        return vidalDrugRepository.fuzzySearchByName(sanitized, limit)
     }
     
     fun findById(id: UUID): VidalDrug? {
