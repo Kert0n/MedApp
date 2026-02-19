@@ -41,7 +41,6 @@ interface MedKitRepository: JpaRepository<MedKit, UUID> {
         FROM MedKit mk
         JOIN mk.users u
         WHERE u.id = :userId
-        GROUP BY mk.id
     """)
     fun findMedKitSummariesByUserId(@Param("userId") userId: UUID): List<Array<Any>>
 }
