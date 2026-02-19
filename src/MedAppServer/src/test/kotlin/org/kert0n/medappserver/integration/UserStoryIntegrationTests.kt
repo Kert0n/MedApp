@@ -395,4 +395,386 @@ class UserStoryIntegrationTests {
         
         println("✅ Story 6 passed: Treatment plan and intakes work correctly")
     }
+
+    /**
+     * Story 7: Multiple users share a medkit and create separate treatment plans for the same drug
+     * 
+     * Validates: Multi-user treatment plans, planned quantity accounting, fair sharing
+     */
+    @Test
+    fun `Story 7 - Multiple users create treatment plans on shared drug`() {
+        // Setup: Anna and Bob share a medkit with 100 tablets of Vitamin C
+        val anna = User(id = UUID.randomUUID(), hashedKey = "anna_${UUID.randomUUID()}")
+        val bob = User(id = UUID.randomUUID(), hashedKey = "bob_${UUID.randomUUID()}")
+        userRepository.save(anna)
+        userRepository.save(bob)
+
+        val medkit = medKitService.createNew(anna.id)
+        medKitService.addUserToMedKit(medkit.id, bob.id)
+
+        val vitaminC = Drug(
+            id = UUID.randomUUID(),
+            name = "Vitamin C",
+            quantity = 100.0,
+            quantityUnit = "tablets",
+            formType = "tablet",
+            category = null,
+            manufacturer = null,
+            country = null,
+            description = null,
+            medKit = medkit
+        )
+        drugRepository.save(vitaminC)
+        entityManager.flush()
+
+        // Anna creates a treatment plan for 40 tablets
+        usingService.createTreatmentPlan(anna.id, UsingCreateDTO(vitaminC.id, 40.0))
+        entityManager.flush()
+
+        // Bob creates a treatment plan for 50 tablets (should succeed: 100 - 40 = 60 available)
+        usingService.createTreatmentPlan(bob.id, UsingCreateDTO(vitaminC.id, 50.0))
+        entityManager.flush()
+
+        // Total planned = 90, should match sumPlannedAmount
+        val totalPlanned = drugRepository.sumPlannedAmount(vitaminC.id)
+        assertEquals(90.0, totalPlanned, "Total planned should be 90")
+
+        // Verify each user has their own plan
+        val annaUsing = usingRepository.findByUserIdAndDrugId(anna.id, vitaminC.id)
+        val bobUsing = usingRepository.findByUserIdAndDrugId(bob.id, vitaminC.id)
+        assertNotNull(annaUsing)
+        assertNotNull(bobUsing)
+        assertEquals(40.0, annaUsing.plannedAmount)
+        assertEquals(50.0, bobUsing.plannedAmount)
+
+        println("✅ Story 7 passed: Multiple users created treatment plans on shared drug")
+    }
+
+    /**
+     * Story 8: Drug quantity reduction cascades to treatment plans
+     * 
+     * Validates: handleQuantityReduction logic, proportional reduction of plans
+     */
+    @Test
+    fun `Story 8 - Reducing drug quantity adjusts treatment plans proportionally`() {
+        val user = User(id = UUID.randomUUID(), hashedKey = "user_${UUID.randomUUID()}")
+        userRepository.save(user)
+        val medkit = medKitService.createNew(user.id)
+
+        val drug = Drug(
+            id = UUID.randomUUID(),
+            name = "Paracetamol",
+            quantity = 100.0,
+            quantityUnit = "tablets",
+            formType = null,
+            category = null,
+            manufacturer = null,
+            country = null,
+            description = null,
+            medKit = medkit
+        )
+        drugRepository.save(drug)
+        entityManager.flush()
+
+        // Create plan for 80 tablets
+        usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 80.0))
+        entityManager.flush()
+        entityManager.clear()
+
+        // Consume 50 tablets (drug goes to 50, but plan is 80 > 50)
+        // handleQuantityReduction should scale the plan down
+        drugService.consumeDrug(drug.id, 50.0, user.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        val updatedDrug = drugRepository.findById(drug.id).orElse(null)
+        assertNotNull(updatedDrug)
+        assertEquals(50.0, updatedDrug.quantity)
+
+        // Plan should be reduced proportionally: 80 * (50/80) = 50
+        val updatedPlan = usingRepository.findByUserIdAndDrugId(user.id, drug.id)
+        assertNotNull(updatedPlan)
+        assertTrue(updatedPlan.plannedAmount <= 50.0, "Plan should be reduced to fit available quantity")
+
+        println("✅ Story 8 passed: Drug quantity reduction cascaded to treatment plans")
+    }
+
+    /**
+     * Story 9: Cannot create treatment plan exceeding available quantity
+     * 
+     * Validates: Planned quantity validation, error handling
+     */
+    @Test
+    fun `Story 9 - Cannot over-plan drug quantity`() {
+        val user = User(id = UUID.randomUUID(), hashedKey = "user_${UUID.randomUUID()}")
+        userRepository.save(user)
+        val medkit = medKitService.createNew(user.id)
+
+        val drug = Drug(
+            id = UUID.randomUUID(),
+            name = "Ibuprofen",
+            quantity = 50.0,
+            quantityUnit = "tablets",
+            formType = null,
+            category = null,
+            manufacturer = null,
+            country = null,
+            description = null,
+            medKit = medkit
+        )
+        drugRepository.save(drug)
+        entityManager.flush()
+
+        // Try to create a plan for 60 tablets when only 50 available
+        assertFailsWith<org.springframework.web.server.ResponseStatusException> {
+            usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 60.0))
+        }
+
+        // Create a plan for 30
+        usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
+        entityManager.flush()
+
+        // Another user tries to plan 25 (only 20 available: 50 - 30 = 20)
+        val user2 = User(id = UUID.randomUUID(), hashedKey = "user2_${UUID.randomUUID()}")
+        userRepository.save(user2)
+        medKitService.addUserToMedKit(medkit.id, user2.id)
+        entityManager.flush()
+
+        assertFailsWith<org.springframework.web.server.ResponseStatusException> {
+            usingService.createTreatmentPlan(user2.id, UsingCreateDTO(drug.id, 25.0))
+        }
+
+        // But 20 should work
+        usingService.createTreatmentPlan(user2.id, UsingCreateDTO(drug.id, 20.0))
+        entityManager.flush()
+
+        assertEquals(50.0, drugRepository.sumPlannedAmount(drug.id))
+
+        println("✅ Story 9 passed: Cannot over-plan drug quantity")
+    }
+
+    /**
+     * Story 10: Complete family medkit lifecycle
+     * 
+     * Validates: Full end-to-end workflow from creation to cleanup
+     */
+    @Test
+    fun `Story 10 - Complete family medkit lifecycle`() {
+        // Mom creates a family medkit
+        val mom = User(id = UUID.randomUUID(), hashedKey = "mom_${UUID.randomUUID()}")
+        val dad = User(id = UUID.randomUUID(), hashedKey = "dad_${UUID.randomUUID()}")
+        val child = User(id = UUID.randomUUID(), hashedKey = "child_${UUID.randomUUID()}")
+        userRepository.save(mom)
+        userRepository.save(dad)
+        userRepository.save(child)
+        entityManager.flush()
+
+        val familyKit = medKitService.createNew(mom.id)
+        medKitService.addUserToMedKit(familyKit.id, dad.id)
+        medKitService.addUserToMedKit(familyKit.id, child.id)
+        entityManager.flush()
+
+        // Add family medications
+        val aspirin = Drug(
+            id = UUID.randomUUID(), name = "Children's Aspirin",
+            quantity = 200.0, quantityUnit = "tablets", formType = "chewable",
+            category = "painkiller", manufacturer = null, country = null,
+            description = null, medKit = familyKit
+        )
+        val vitamins = Drug(
+            id = UUID.randomUUID(), name = "Multivitamins",
+            quantity = 90.0, quantityUnit = "tablets", formType = "tablet",
+            category = "supplement", manufacturer = null, country = null,
+            description = null, medKit = familyKit
+        )
+        drugRepository.save(aspirin)
+        drugRepository.save(vitamins)
+        entityManager.flush()
+
+        // Everyone gets treatment plans for vitamins: 30 each
+        usingService.createTreatmentPlan(mom.id, UsingCreateDTO(vitamins.id, 30.0))
+        usingService.createTreatmentPlan(dad.id, UsingCreateDTO(vitamins.id, 30.0))
+        usingService.createTreatmentPlan(child.id, UsingCreateDTO(vitamins.id, 30.0))
+        entityManager.flush()
+
+        // Total planned = 90 (full supply)
+        assertEquals(90.0, drugRepository.sumPlannedAmount(vitamins.id))
+
+        // Everyone takes their daily vitamin
+        usingService.recordIntake(mom.id, vitamins.id, 1.0)
+        usingService.recordIntake(dad.id, vitamins.id, 1.0)
+        usingService.recordIntake(child.id, vitamins.id, 1.0)
+        entityManager.flush()
+        entityManager.clear()
+
+        // Check vitamins after 1 day
+        val updatedVitamins = drugRepository.findById(vitamins.id).orElse(null)
+        assertNotNull(updatedVitamins)
+        assertEquals(87.0, updatedVitamins.quantity, "Should be 90 - 3 = 87")
+
+        // 3 users in the medkit
+        val medkit = medKitRepository.findById(familyKit.id).orElse(null)
+        assertNotNull(medkit)
+        assertEquals(3, medkit.users.size)
+
+        // Child leaves the medkit
+        medKitService.removeUserFromMedKit(familyKit.id, child.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        // Medkit still has mom and dad
+        val updatedKit = medKitRepository.findById(familyKit.id).orElse(null)
+        assertNotNull(updatedKit)
+        assertEquals(2, updatedKit.users.size)
+
+        println("✅ Story 10 passed: Complete family medkit lifecycle")
+    }
+
+    /**
+     * Story 11: Moving drugs between medkits preserves treatment plans
+     * 
+     * Validates: Drug move, treatment plan integrity
+     */
+    @Test
+    fun `Story 11 - Moving drug between medkits`() {
+        val user = User(id = UUID.randomUUID(), hashedKey = "user_${UUID.randomUUID()}")
+        userRepository.save(user)
+
+        val homeKit = medKitService.createNew(user.id)
+        val travelKit = medKitService.createNew(user.id)
+
+        val painkiller = Drug(
+            id = UUID.randomUUID(), name = "Ibuprofen",
+            quantity = 60.0, quantityUnit = "tablets", formType = "tablet",
+            category = "painkiller", manufacturer = null, country = null,
+            description = null, medKit = homeKit
+        )
+        drugRepository.save(painkiller)
+        entityManager.flush()
+
+        // Create treatment plan
+        usingService.createTreatmentPlan(user.id, UsingCreateDTO(painkiller.id, 20.0))
+        entityManager.flush()
+
+        // Move drug to travel kit
+        drugService.moveDrug(painkiller.id, travelKit.id, user.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        // Drug is in travel kit
+        val movedDrug = drugRepository.findById(painkiller.id).orElse(null)
+        assertNotNull(movedDrug)
+        assertEquals(travelKit.id, movedDrug.medKit.id)
+
+        // Home kit is empty
+        val homeKitDrugs = drugRepository.findAllByMedKitId(homeKit.id)
+        assertTrue(homeKitDrugs.isEmpty())
+
+        // Travel kit has the drug
+        val travelKitDrugs = drugRepository.findAllByMedKitId(travelKit.id)
+        assertEquals(1, travelKitDrugs.size)
+
+        // Treatment plan still exists
+        val plan = usingRepository.findByUserIdAndDrugId(user.id, painkiller.id)
+        assertNotNull(plan, "Treatment plan should survive drug move")
+        assertEquals(20.0, plan.plannedAmount)
+
+        println("✅ Story 11 passed: Drug moved between medkits with treatment plan intact")
+    }
+
+    /**
+     * Story 12: Update treatment plan correctly checks available quantity
+     * 
+     * Validates: updateTreatmentPlan bug fix (was double-counting current user's plan)
+     */
+    @Test
+    fun `Story 12 - Updating treatment plan correctly checks available quantity`() {
+        val anna = User(id = UUID.randomUUID(), hashedKey = "anna_${UUID.randomUUID()}")
+        val bob = User(id = UUID.randomUUID(), hashedKey = "bob_${UUID.randomUUID()}")
+        userRepository.save(anna)
+        userRepository.save(bob)
+
+        val medkit = medKitService.createNew(anna.id)
+        medKitService.addUserToMedKit(medkit.id, bob.id)
+
+        val drug = Drug(
+            id = UUID.randomUUID(), name = "Medicine X",
+            quantity = 100.0, quantityUnit = "ml", formType = "liquid",
+            category = null, manufacturer = null, country = null,
+            description = null, medKit = medkit
+        )
+        drugRepository.save(drug)
+        entityManager.flush()
+
+        // Anna plans 40, Bob plans 30 (total 70, available 30)
+        usingService.createTreatmentPlan(anna.id, UsingCreateDTO(drug.id, 40.0))
+        usingService.createTreatmentPlan(bob.id, UsingCreateDTO(drug.id, 30.0))
+        entityManager.flush()
+
+        // Anna should be able to increase her plan to 70 (available for her = 100 - 30 (bob) = 70)
+        val updated = usingService.updateTreatmentPlan(
+            anna.id, drug.id,
+            org.kert0n.medappserver.controller.UsingUpdateDTO(70.0)
+        )
+        assertEquals(70.0, updated.plannedAmount)
+        entityManager.flush()
+
+        // Total planned should now be 100 (70 + 30)
+        assertEquals(100.0, drugRepository.sumPlannedAmount(drug.id))
+
+        // Anna should NOT be able to increase to 71 (exceeds available)
+        assertFailsWith<org.springframework.web.server.ResponseStatusException> {
+            usingService.updateTreatmentPlan(
+                anna.id, drug.id,
+                org.kert0n.medappserver.controller.UsingUpdateDTO(71.0)
+            )
+        }
+
+        println("✅ Story 12 passed: Treatment plan update correctly checks available quantity")
+    }
+
+    /**
+     * Story 13: Deleting a drug cascades to remove associated treatment plans
+     * 
+     * Validates: Cascade delete behavior, orphan removal
+     */
+    @Test
+    fun `Story 13 - Deleting drug removes its treatment plans`() {
+        val user = User(id = UUID.randomUUID(), hashedKey = "user_${UUID.randomUUID()}")
+        userRepository.save(user)
+
+        val medkit = medKitService.createNew(user.id)
+        val drug = Drug(
+            id = UUID.randomUUID(), name = "Expired Drug",
+            quantity = 50.0, quantityUnit = "tablets", formType = null,
+            category = null, manufacturer = null, country = null,
+            description = null, medKit = medkit
+        )
+        drugRepository.save(drug)
+        entityManager.flush()
+
+        // Create treatment plan
+        usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 25.0))
+        entityManager.flush()
+        entityManager.clear()
+
+        // Verify plan exists
+        val plan = usingRepository.findByUserIdAndDrugId(user.id, drug.id)
+        assertNotNull(plan)
+
+        // Delete the drug
+        drugService.delete(drug.id, user.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        // Drug should be gone
+        val deletedDrug = drugRepository.findById(drug.id).orElse(null)
+        assertNull(deletedDrug)
+
+        // Treatment plan should also be gone (cascade)
+        val deletedPlan = usingRepository.findByUserIdAndDrugId(user.id, drug.id)
+        assertNull(deletedPlan)
+
+        println("✅ Story 13 passed: Deleting drug removed its treatment plans")
+    }
 }
