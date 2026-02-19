@@ -1,5 +1,7 @@
 package org.kert0n.medappserver.testutil
 
+import org.kert0n.medappserver.controller.DrugCreateDTO
+import org.kert0n.medappserver.controller.DrugUpdateDTO
 import org.kert0n.medappserver.db.model.*
 import java.util.*
 

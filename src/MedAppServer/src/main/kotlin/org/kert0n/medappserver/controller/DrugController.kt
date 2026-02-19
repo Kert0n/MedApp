@@ -105,9 +105,9 @@ class DrugController(
         @Parameter(description = "Drug ID") @PathVariable id: UUID
     ): QuantityInfo {
         logger.debug("GET /drug/quantity/{} by user {}", id, authentication.userId)
-        drugService.findByIdForUser(id, authentication.userId)
-        val (actual, planned) = drugService.getAvailableQuantity(id)
-        return QuantityInfo(actual, planned, actual - planned)
+        val drug = drugService.findByIdForUser(id, authentication.userId)
+        val planned = drugService.getPlannedQuantity(id)
+        return QuantityInfo(drug.quantity, planned, drug.quantity - planned)
     }
 
     @PutMapping("/consume/{id}")
@@ -119,7 +119,7 @@ class DrugController(
         @Valid @RequestBody consumeRequest: ConsumeRequest
     ): DrugDTO {
         logger.debug("PUT /drug/consume/{} by user {}, quantity: {}", id, authentication.userId, consumeRequest.quantity)
-        val drug = drugService.consumeDrug(id, consumeRequest, authentication.userId)
+        val drug = drugService.consumeDrug(id, consumeRequest.quantity, authentication.userId)
         return drugService.toDrugDTO(drug)
     }
 

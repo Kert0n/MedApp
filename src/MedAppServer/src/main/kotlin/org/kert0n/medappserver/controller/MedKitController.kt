@@ -67,10 +67,8 @@ class MedKitController(
         @Valid @RequestBody request: AddUserRequest
     ): String {
         logger.debug("POST /med-kit/{}/share by user {}", medKitId, authentication.userId)
-        return medKitService.generateMedKitShareKey(
-            medKitService.findByIdForUser(medKitId, authentication.userId),
-            authentication.userId
-        )
+        medKitService.findByIdForUser(medKitId, authentication.userId)
+        return medKitService.generateMedKitShareKey(medKitId, authentication.userId)
     }
 
     @DeleteMapping("/{id}/leave")

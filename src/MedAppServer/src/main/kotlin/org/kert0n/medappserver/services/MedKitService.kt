@@ -28,9 +28,10 @@ open class MedKitService(
     fun createNew(userId: UUID): MedKit {
         logger.debug("Creating new medkit for user: {}", userId)
         val user: User = userService.findById(userId)
-        val medKit = MedKit()
+        val medKit = medKitRepository.save(MedKit())
         user.medKits.add(medKit)
-        return medKitRepository.save(medKit)
+        medKit.users.add(user)
+        return medKit
     }
 
     @Transactional(readOnly = true)
@@ -45,7 +46,7 @@ open class MedKitService(
     @Transactional(readOnly = true)
     fun findByIdForUser(medKitId: UUID, userId: UUID): MedKit {
         logger.debug("Finding medkit {} for user {}", medKitId, userId)
-        return medKitRepository.findByIdAndUsers(medKitId, userId) ?: throw ResponseStatusException(
+        return medKitRepository.findByIdAndUserId(medKitId, userId) ?: throw ResponseStatusException(
             HttpStatus.NOT_FOUND,
             "Medkit not found or user has insufficient privileges"
         )
@@ -58,22 +59,28 @@ open class MedKitService(
         return medKitRepository.findByUsersId(userId)
     }
 
-    fun generateMedKitShareKey(medKit: MedKit, userId: UUID): String {
+    fun generateMedKitShareKey(medKitId: UUID, userId: UUID): String {
         val key = securityService.generateKey(16)
-        medKitTokenCache[securityService.hashToken(key)] = medKit.id
+        medKitTokenCache[securityService.hashToken(key)] = medKitId
         return key
     }
 
     @Transactional
-    fun addUserToMedKit(key: String, userId: UUID): MedKit {
+    fun addUserToMedKit(medKitId: UUID, userId: UUID): MedKit {
+        logger.debug("Adding user {} to medkit {}", userId, medKitId)
+        val medKit = findById(medKitId)
+        val user = userService.findById(userId)
+        medKit.users.add(user)
+        user.medKits.add(medKit)
+        return medKitRepository.save(medKit)
+    }
+
+    @Transactional
+    fun joinMedKitByKey(key: String, userId: UUID): MedKit {
         val medKitId = medKitTokenCache.getOrNull(securityService.hashToken(key)) ?: throw ResponseStatusException(
             HttpStatus.NOT_FOUND, "Your token has expired or didnt exist in first place"
         )
-        logger.debug("Adding user {} to medkit {}", userId, medKitId)
-
-        val medKit = findById(medKitId)
-        medKit.users.add(userService.findById(medKitId))
-        return medKitRepository.save(medKit)
+        return addUserToMedKit(medKitId, userId)
     }
 
     @Transactional
