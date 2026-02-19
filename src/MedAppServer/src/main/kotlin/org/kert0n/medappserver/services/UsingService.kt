@@ -1,73 +1,63 @@
 package org.kert0n.medappserver.services
 
-import org.kert0n.medappserver.db.model.*
-import org.kert0n.medappserver.db.repository.DrugRepository
-import org.kert0n.medappserver.db.repository.UserRepository
+import org.kert0n.medappserver.controller.ConsumeRequest
+import org.kert0n.medappserver.controller.UsingCreateDTO
+import org.kert0n.medappserver.controller.UsingDTO
+import org.kert0n.medappserver.controller.UsingUpdateDTO
+import org.kert0n.medappserver.db.model.Using
+import org.kert0n.medappserver.db.model.UsingKey
 import org.kert0n.medappserver.db.repository.UsingRepository
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 @Service
 class UsingService(
     private val usingRepository: UsingRepository,
-    private val drugRepository: DrugRepository,
-    private val userRepository: UserRepository
+    val logger: Logger = LoggerFactory.getLogger(UsingService::class.java),
+    private val userService: UserService,
+    private val drugService: DrugService
 ) {
 
-    private val logger = LoggerFactory.getLogger(UsingService::class.java)
 
     @Transactional(readOnly = true)
     fun findAllByUser(userId: UUID): List<Using> {
-        logger.debug("Finding all treatment plans for user: {}", userId)
+        logger.debug("Finding all usings for user: {}", userId)
         return usingRepository.findAllByUserId(userId)
     }
 
     @Transactional(readOnly = true)
     fun findAllByDrug(drugId: UUID): List<Using> {
-        logger.debug("Finding all treatment plans for drug: {}", drugId)
+        logger.debug("Finding all usings for drug: {}", drugId)
         return usingRepository.findAllByDrugId(drugId)
     }
 
     @Transactional(readOnly = true)
-    fun findByUserAndDrug(userId: UUID, drugId: UUID): Using? {
-        logger.debug("Finding treatment plan for user {} and drug {}", userId, drugId)
+    fun findByUserAndDrug(userId: UUID, drugId: UUID): Using {
+        logger.debug("Finding using for user {} and drug {}", userId, drugId)
         return usingRepository.findByUserIdAndDrugId(userId, drugId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "There is no such using")
     }
 
     @Transactional
     fun createTreatmentPlan(userId: UUID, createDTO: UsingCreateDTO): Using {
-        logger.debug("Creating treatment plan for user {} and drug {}", userId, createDTO.drugId)
-        
-        // Validate planned amount is positive
-        if (createDTO.plannedAmount <= 0) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Planned amount must be positive")
-        }
-        
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
-        
-        val drug = drugRepository.findByIdOrNull(createDTO.drugId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found")
-        
-        // Check if user has access to the medkit containing this drug
-        if (!drug.medKit.users.any { it.id == userId }) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "User does not have access to this drug")
-        }
-        
-        // Check if treatment plan already exists
-        val existing = findByUserAndDrug(userId, createDTO.drugId)
-        if (existing != null) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Treatment plan already exists for this user and drug")
+        logger.debug("Creating using for user {} and drug {}", userId, createDTO.drugId)
+
+
+        val user = userService.findById(userId)
+        val drug = drugService.findByIdForUser(createDTO.drugId, userId)
+
+        if (usingRepository.findByUserIdAndDrugId(userId, createDTO.drugId) != null) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "using already exists for this user and drug")
         }
         
         // Validate planned quantity
-        val currentPlanned = drug.usings.sumOf { it.plannedAmount }
+        val currentPlanned = drugService.getPlannedQuantity(createDTO.drugId)
         val availableQuantity = drug.quantity - currentPlanned
         
         if (createDTO.plannedAmount > availableQuantity) {
@@ -92,20 +82,15 @@ class UsingService(
 
     @Transactional
     fun updateTreatmentPlan(userId: UUID, drugId: UUID, updateDTO: UsingUpdateDTO): Using {
-        logger.debug("Updating treatment plan for user {} and drug {}", userId, drugId)
+        logger.debug("Updating using for user {} and drug {}", userId, drugId)
         
         // Validate planned amount is positive
         if (updateDTO.plannedAmount <= 0) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Planned amount must be positive")
         }
-        
         val using = findByUserAndDrug(userId, drugId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Treatment plan not found")
-        
-        // Validate new planned quantity
-        val drug = using.drug
-        val otherPlanned = drug.usings.filter { it.user.id != userId }.sumOf { it.plannedAmount }
-        val availableQuantity = drug.quantity - otherPlanned
+        val otherPlanned = drugService.getPlannedQuantity(using.drug.id)
+        val availableQuantity = using.drug.quantity - otherPlanned
         
         if (updateDTO.plannedAmount > availableQuantity) {
             logger.warn("Updated planned amount {} exceeds available quantity {}", updateDTO.plannedAmount, availableQuantity)
@@ -124,16 +109,8 @@ class UsingService(
     @Transactional
     fun recordIntake(userId: UUID, drugId: UUID, quantityConsumed: Double): Using {
         logger.debug("Recording intake for user {} and drug {}, quantity: {}", userId, drugId, quantityConsumed)
-        
-        if (quantityConsumed <= 0) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be positive")
-        }
-        
         val using = findByUserAndDrug(userId, drugId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Treatment plan not found")
-        
         val drug = using.drug
-        
         // Check if consumed quantity exceeds planned amount
         if (quantityConsumed > using.plannedAmount) {
             throw ResponseStatusException(
@@ -147,8 +124,7 @@ class UsingService(
         }
         
         // Reduce drug quantity
-        drug.quantity -= quantityConsumed
-        drugRepository.save(drug)
+        drugService.consumeDrug(drugId, ConsumeRequest(quantityConsumed), userId)
         
         // Update planned amount
         using.plannedAmount = maxOf(0.0, using.plannedAmount - quantityConsumed)
@@ -159,11 +135,8 @@ class UsingService(
 
     @Transactional
     fun deleteTreatmentPlan(userId: UUID, drugId: UUID) {
-        logger.debug("Deleting treatment plan for user {} and drug {}", userId, drugId)
-        
+        logger.debug("Deleting using for user {} and drug {}", userId, drugId)
         val using = findByUserAndDrug(userId, drugId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Treatment plan not found")
-        
         usingRepository.delete(using)
     }
 

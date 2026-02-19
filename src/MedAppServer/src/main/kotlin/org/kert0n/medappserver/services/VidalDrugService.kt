@@ -2,9 +2,8 @@ package org.kert0n.medappserver.services
 
 import org.kert0n.medappserver.db.model.parsed.VidalDrug
 import org.kert0n.medappserver.db.repository.VidalDrugRepository
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
-import java.util.UUID
+import java.util.*
 
 @Service
 class VidalDrugService(
@@ -21,8 +20,5 @@ class VidalDrugService(
     fun findById(id: UUID): VidalDrug? {
         return vidalDrugRepository.findById(id).orElse(null)
     }
-    
-    fun getAll(): List<VidalDrug> {
-        return vidalDrugRepository.findAll()
-    }
+
 }
