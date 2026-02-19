@@ -35,4 +35,13 @@ interface MedKitRepository: JpaRepository<MedKit, UUID> {
         WHERE mk.id = :id AND u.id = :userId
     """)
     fun findByIdAndUserId(@Param("id") id: UUID, @Param("userId") userId: UUID): MedKit?
+
+    @Query("""
+        SELECT mk.id, SIZE(mk.users), SIZE(mk.drugs)
+        FROM MedKit mk
+        JOIN mk.users u
+        WHERE u.id = :userId
+        GROUP BY mk.id
+    """)
+    fun findMedKitSummariesByUserId(@Param("userId") userId: UUID): List<Array<Any>>
 }

@@ -88,7 +88,8 @@ class UsingService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Planned amount must be positive")
         }
         val using = findByUserAndDrug(userId, drugId)
-        val otherPlanned = drugService.getPlannedQuantity(using.drug.id)
+        val totalPlanned = drugService.getPlannedQuantity(using.drug.id)
+        val otherPlanned = totalPlanned - using.plannedAmount
         val availableQuantity = using.drug.quantity - otherPlanned
         
         if (updateDTO.plannedAmount > availableQuantity) {
