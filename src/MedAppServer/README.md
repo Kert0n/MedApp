@@ -72,6 +72,9 @@ http://localhost:8080/swagger-ui/index.html
 - `POST /med-kit` - Создать аптечку
 - `GET /med-kit/{id}` - Получить аптечку
 - `GET /med-kit` - Получить все аптечки
+- `POST /med-kit/{id}/share` - Сгенерировать ключ доступа
+- `POST /med-kit/join` - Присоединиться к аптечке по ключу
+- `DELETE /med-kit/{id}/leave` - Выйти из аптечки
 - `DELETE /med-kit/{id}` - Удалить аптечку
 
 ### Препараты

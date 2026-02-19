@@ -23,7 +23,7 @@ import kotlin.test.*
  * 
  * Stories covered:
  * 1. New user creates and manages medkit
- * 2. User shares medkit with friend (multi-user scenario)
+ * 2. User shares medkit with friend via share key (multi-user scenario)
  * 3. Multiple users coordinate shared medkit
  * 4. User deletes medkit with migration
  * 5. Edge cases through realistic workflows
@@ -154,8 +154,9 @@ class UserStoryIntegrationTests {
         userRepository.save(bob)
         entityManager.flush()
 
-        // Anna shares with Bob
-        medKitService.addUserToMedKit(medkit.id, bob.id)
+        // Anna shares with Bob via share key
+        val shareKey = medKitService.generateMedKitShareKey(medkit.id, anna.id)
+        medKitService.joinMedKitByKey(shareKey, bob.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -189,7 +190,8 @@ class UserStoryIntegrationTests {
         userRepository.save(bob)
         
         val medkit = medKitService.createNew(anna.id)
-        medKitService.addUserToMedKit(medkit.id, bob.id)
+        val shareKey = medKitService.generateMedKitShareKey(medkit.id, anna.id)
+        medKitService.joinMedKitByKey(shareKey, bob.id)
         
         val drug = Drug(
             id = UUID.randomUUID(),
@@ -410,7 +412,8 @@ class UserStoryIntegrationTests {
         userRepository.save(bob)
 
         val medkit = medKitService.createNew(anna.id)
-        medKitService.addUserToMedKit(medkit.id, bob.id)
+        val shareKey = medKitService.generateMedKitShareKey(medkit.id, anna.id)
+        medKitService.joinMedKitByKey(shareKey, bob.id)
 
         val vitaminC = Drug(
             id = UUID.randomUUID(),
@@ -537,7 +540,8 @@ class UserStoryIntegrationTests {
         // Another user tries to plan 25 (only 20 available: 50 - 30 = 20)
         val user2 = User(id = UUID.randomUUID(), hashedKey = "user2_${UUID.randomUUID()}")
         userRepository.save(user2)
-        medKitService.addUserToMedKit(medkit.id, user2.id)
+        val shareKey = medKitService.generateMedKitShareKey(medkit.id, user.id)
+        medKitService.joinMedKitByKey(shareKey, user2.id)
         entityManager.flush()
 
         assertFailsWith<org.springframework.web.server.ResponseStatusException> {
@@ -570,8 +574,10 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         val familyKit = medKitService.createNew(mom.id)
-        medKitService.addUserToMedKit(familyKit.id, dad.id)
-        medKitService.addUserToMedKit(familyKit.id, child.id)
+        val dadKey = medKitService.generateMedKitShareKey(familyKit.id, mom.id)
+        medKitService.joinMedKitByKey(dadKey, dad.id)
+        val childKey = medKitService.generateMedKitShareKey(familyKit.id, mom.id)
+        medKitService.joinMedKitByKey(childKey, child.id)
         entityManager.flush()
 
         // Add family medications
@@ -695,7 +701,8 @@ class UserStoryIntegrationTests {
         userRepository.save(bob)
 
         val medkit = medKitService.createNew(anna.id)
-        medKitService.addUserToMedKit(medkit.id, bob.id)
+        val shareKey = medKitService.generateMedKitShareKey(medkit.id, anna.id)
+        medKitService.joinMedKitByKey(shareKey, bob.id)
 
         val drug = Drug(
             id = UUID.randomUUID(), name = "Medicine X",
