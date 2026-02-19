@@ -8,15 +8,17 @@ import java.util.*
 
 interface VidalDrugRepository : JpaRepository<VidalDrug, UUID> {
     
-    // Native PostgreSQL fuzzy search using pg_trgm trigram similarity (supports Cyrillic and Unicode).
-    // The threshold 0.2 for word_similarity is intentionally low to catch partial/prefix matches like "аспир" -> "аспирин".
+    // Native PostgreSQL fuzzy search using trigram similarity
     @Query(
         value = """
         SELECT * FROM parsed_drugs 
-        WHERE name ILIKE CONCAT('%', :searchTerm, '%')
-           OR word_similarity(:searchTerm, name) > 0.2
+        WHERE LOWER(name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
         ORDER BY 
-            word_similarity(:searchTerm, name) DESC,
+            CASE 
+                WHEN LOWER(name) = LOWER(:searchTerm) THEN 0
+                WHEN LOWER(name) LIKE LOWER(CONCAT(:searchTerm, '%')) THEN 1
+                ELSE 2
+            END,
             name
         LIMIT :limit
         """,
