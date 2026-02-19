@@ -56,8 +56,9 @@ class MedKitController(
     @GetMapping
     fun getAllMedKits(authentication: Authentication): List<MedKitSummaryDTO> {
         logger.debug("GET /med-kit by user {}", authentication.userId)
-        val medKits = medKitService.findAllByUser(authentication.userId)
-        return medKits.map { MedKitSummaryDTO(it.id, it.users.size, it.drugs.size) }
+        return medKitService.findMedKitSummaries(authentication.userId).map {
+            MedKitSummaryDTO(it.first, it.second, it.third)
+        }
     }
 
     @PostMapping("/{medKitId}/share")

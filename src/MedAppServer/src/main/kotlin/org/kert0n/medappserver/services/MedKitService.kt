@@ -59,6 +59,14 @@ open class MedKitService(
         return medKitRepository.findByUsersId(userId)
     }
 
+    @Transactional(readOnly = true)
+    fun findMedKitSummaries(userId: UUID): List<Triple<UUID, Int, Int>> {
+        logger.debug("Finding medkit summaries for user: {}", userId)
+        return medKitRepository.findMedKitSummariesByUserId(userId).map { row ->
+            Triple(row[0] as UUID, row[1] as Int, row[2] as Int)
+        }
+    }
+
     fun generateMedKitShareKey(medKitId: UUID, userId: UUID): String {
         val key = securityService.generateKey(16)
         medKitTokenCache[securityService.hashToken(key)] = medKitId
