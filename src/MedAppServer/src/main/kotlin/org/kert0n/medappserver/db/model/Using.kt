@@ -2,7 +2,6 @@ package org.kert0n.medappserver.db.model
 
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
-import jakarta.validation.constraints.DecimalMin
 import java.io.Serializable
 import java.time.Instant
 import java.util.*
@@ -43,9 +42,6 @@ class Using(
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now()
 ) {
-    @Version
-    @Column(name = "version")
-    var version: Long = 0
     
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -82,27 +78,4 @@ class UsingKey(
         return Objects.hash(userId, drugId)
     }
 }
-
-data class UsingDTO(
-    val userId: UUID,
-    val drugId: UUID,
-    val plannedAmount: Double,
-    val createdAt: Instant,
-    val lastModified: Instant
-)
-
-data class UsingCreateDTO(
-    @field:NotNull
-    val drugId: UUID,
-    
-    @field:NotNull
-    @field:DecimalMin("0.0")
-    val plannedAmount: Double
-)
-
-data class UsingUpdateDTO(
-    @field:NotNull
-    @field:DecimalMin("0.0")
-    val plannedAmount: Double
-)
 

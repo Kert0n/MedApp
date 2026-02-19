@@ -3,6 +3,7 @@ package org.kert0n.medappserver.db.model
 import jakarta.persistence.*
 import java.util.*
 
+
 @Entity
 @Table(name = "med_kits")
 class MedKit(
@@ -13,6 +14,7 @@ class MedKit(
     var users: MutableSet<User> = mutableSetOf(),
     @OneToMany(mappedBy = "medKit", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
     var drugs: MutableSet<Drug> = mutableSetOf()
+
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -28,7 +30,3 @@ class MedKit(
     }
 }
 
-data class MedKitDTO(
-    val id: UUID,
-    val drugs: Set<DrugDTO>
-)

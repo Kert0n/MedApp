@@ -4,11 +4,10 @@ import org.kert0n.medappserver.db.model.User
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import java.util.UUID
+import java.util.*
 
 interface UserRepository: JpaRepository<User, UUID> {
-    
-    // JPQL - explicit join
+
     @Query("""
         SELECT u FROM User u
         JOIN u.medKits mk
@@ -21,9 +20,8 @@ interface UserRepository: JpaRepository<User, UUID> {
         JOIN u.usings us
         WHERE us.drug.id = :drugId
     """)
-    fun findByUsingsDrugId(@Param("drugId") drugId: UUID): List<User>
-    
-    // JPQL with fetch for eager loading
+    fun findByUsingsDrugId(@Param("drugId") drugId: UUID): Set<User>
+
     @Query("""
         SELECT u FROM User u
         LEFT JOIN FETCH u.medKits

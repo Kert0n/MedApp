@@ -1,31 +1,36 @@
 package org.kert0n.medappserver.services
 
-import org.kert0n.medappserver.db.model.*
+import org.kert0n.medappserver.controller.ConsumeRequest
+import org.kert0n.medappserver.controller.DrugCreateDTO
+import org.kert0n.medappserver.controller.DrugDTO
+import org.kert0n.medappserver.controller.DrugUpdateDTO
+import org.kert0n.medappserver.db.model.Drug
 import org.kert0n.medappserver.db.repository.DrugRepository
-import org.kert0n.medappserver.db.repository.MedKitRepository
-import org.kert0n.medappserver.db.repository.UsingRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
-import java.util.UUID
+import java.util.*
 
 @Service
 class DrugService(
     private val drugRepository: DrugRepository,
-    private val medKitRepository: MedKitRepository,
-    private val usingRepository: UsingRepository
+    private val medKitService: MedKitService,
+    private val usingService: UsingService,
+    private val userService: UserService
 ) {
-    
+
     private val logger = LoggerFactory.getLogger(DrugService::class.java)
 
     @Transactional(readOnly = true)
     fun findById(drugId: UUID): Drug {
         logger.debug("Finding drug by ID: {}", drugId)
-        return drugRepository.findById(drugId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found: $drugId") }
+        return drugRepository.findByIdOrNull(drugId) ?: throw ResponseStatusException(
+            HttpStatus.NOT_FOUND,
+            "Drug not found: $drugId"
+        )
     }
 
     @Transactional(readOnly = true)
@@ -50,14 +55,8 @@ class DrugService(
     @Transactional
     fun create(createDTO: DrugCreateDTO, userId: UUID): Drug {
         logger.debug("Creating drug: {} for user: {}", createDTO.name, userId)
-        
-        val medKit = medKitRepository.findById(createDTO.medKitId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "MedKit not found") }
-        
-        // Check if user has access to this medkit
-        if (!medKit.users.any { it.id == userId }) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "User does not have access to this medkit")
-        }
+
+        val medKit = medKitService.findByIdForUser(createDTO.medKitId, userId)
         
         val drug = Drug(
             name = createDTO.name,
@@ -112,54 +111,39 @@ class DrugService(
         logger.debug("Moving drug {} to medkit {}", drugId, targetMedKitId)
         
         val drug = findByIdForUser(drugId, userId)
-        val targetMedKit = medKitRepository.findByIdOrNull(targetMedKitId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Target MedKit not found")
-        
-        if (!targetMedKit.users.any { it.id == userId }) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "User does not have access to target medkit")
-        }
-        
-        // Actually change the drug's medKit reference
+        val targetMedKit = medKitService.findByIdForUser(targetMedKitId, userId)
         drug.medKit = targetMedKit
-        
         return drugRepository.save(drug)
     }
 
     @Transactional
-    fun consumeDrug(drugId: UUID, quantity: Double, userId: UUID): Drug {
-        logger.debug("Consuming {} of drug {}", quantity, drugId)
-        
-        if (quantity < 0) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be positive")
-        }
+    fun consumeDrug(drugId: UUID, consumeRequest: ConsumeRequest, userId: UUID): Drug {
+        logger.debug("Consuming {} of drug {}", consumeRequest.quantity, drugId)
         
         val drug = findByIdForUser(drugId, userId)
-        
-        if (quantity > drug.quantity) {
+
+        if (consumeRequest.quantity > drug.quantity) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient quantity available")
         }
-        
-        drug.quantity -= quantity
+
+        drug.quantity -= consumeRequest.quantity
+        handleQuantityReduction(drug, userId)
         return drugRepository.save(drug)
     }
 
     @Transactional(readOnly = true)
-    fun getPlannedQuantity(drug: Drug): Double {
-        return drug.usings.sumOf { it.plannedAmount }
+    fun getPlannedQuantity(drugId: UUID): Double {
+        return drugRepository.findQuantity(drugId)
     }
 
     @Transactional(readOnly = true)
     fun getAvailableQuantity(drugId: UUID): Pair<Double, Double> {
-        val drug = drugRepository.findById(drugId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found") }
-        
-        val planned = getPlannedQuantity(drug)
-        return drug.quantity to planned
+        return drugRepository.findPlannedAndActualQuantity(drugId)
     }
 
     @Transactional(readOnly = true)
     fun toDrugDTO(drug: Drug): DrugDTO {
-        val plannedQuantity = getPlannedQuantity(drug)
+        val plannedQuantity = getPlannedQuantity(drug.id)
         return DrugDTO(
             id = drug.id,
             name = drug.name,
@@ -177,12 +161,15 @@ class DrugService(
 
     private fun handleQuantityReduction(drug: Drug, userId: UUID) {
         logger.debug("Handling quantity reduction for drug: {}", drug.id)
-        
-        val totalPlanned = getPlannedQuantity(drug)
-        if (totalPlanned > drug.quantity) {
-            logger.warn("Drug {} quantity {} is less than planned {}", drug.id, drug.quantity, totalPlanned)
-            // In shared medkit, this would trigger notifications to affected users
-            // For now, the Using records remain - client will handle the conflict
-        }
+
+        val totalPlanned = getPlannedQuantity(drug.id)
+        if (totalPlanned < drug.quantity) return
+        logger.warn("Drug {} quantity {} is less than planned {}", drug.id, drug.quantity, totalPlanned)
+        val reduceFactor = drug.quantity / totalPlanned
+        drug.usings.forEach { it.plannedAmount *= reduceFactor }
+        drugRepository.save(drug)
+        // TODO FIREBASE NOTIFICATION
+
     }
+
 }
