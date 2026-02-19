@@ -1,7 +1,7 @@
 package org.kert0n.medappserver.testutil
 
 import org.kert0n.medappserver.db.model.*
-import java.util.UUID
+import java.util.*
 
 /**
  * Test data builders for creating consistent test entities
