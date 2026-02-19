@@ -51,7 +51,12 @@ class SecurityConfiguration(
             .csrf { csrf -> csrf.disable() }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/auth/**")
+                    .requestMatchers(
+                        "/auth/**",
+                        "/swagger-ui",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**"
+                    )
                     .permitAll()
                     .dispatcherTypeMatchers(
                         DispatcherType.ERROR,
