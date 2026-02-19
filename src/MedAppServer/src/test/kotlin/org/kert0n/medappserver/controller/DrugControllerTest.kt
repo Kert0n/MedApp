@@ -252,6 +252,25 @@ class DrugControllerTest {
     }
 
     @Test
+    fun `GET template search - handles Cyrillic search term`() {
+        val vd = VidalDrug(
+            id = UUID.randomUUID(),
+            name = "Аспирин",
+            manufacturer = "Bayer",
+            otc = true
+        )
+        whenever(vidalDrugService.fuzzySearchByName("аспир", 10)).thenReturn(listOf(vd))
+
+        mockMvc.perform(
+            get("/drug/template/search")
+                .with(jwt().jwt { it.subject(userId.toString()) })
+                .param("searchTerm", "аспир")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].name").value("Аспирин"))
+    }
+
+    @Test
     fun `GET template by id - returns template`() {
         val templateId = UUID.randomUUID()
         val vd = VidalDrug(
