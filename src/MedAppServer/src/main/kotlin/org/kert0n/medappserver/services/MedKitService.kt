@@ -96,7 +96,8 @@ open class MedKitService(
             drug.usings.removeIf { it.user.id == userId }
         }
         user.medKits.remove(medKit)
-        if (medKit.users.size == 1) {
+        medKit.users.remove(user)
+        if (medKit.users.isEmpty()) {
             // This user was the last
             logger.debug("No users left in medkit {}, deleting", medKitId)
             medKitRepository.delete(medKit)
