@@ -54,7 +54,7 @@ interface DrugRepository: JpaRepository<Drug, UUID> {
         FROM Drug d
         LEFT JOIN d.usings u
         WHERE d.id = :drugId
-        GROUP BY d.quantity
+        GROUP BY d.id, d.quantity
     """)
     fun findQuantitySummaryByDrugId(@Param("drugId") drugId: UUID): QuantitySummary?
 
