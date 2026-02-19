@@ -87,7 +87,7 @@ open class MedKitService(
     fun joinMedKitByKey(key: String, userId: UUID): MedKit {
         val hashedKey = securityService.hashToken(key)
         val medKitId = medKitTokenCache.getOrNull(hashedKey) ?: throw ResponseStatusException(
-            HttpStatus.NOT_FOUND, "Your token has expired or didnt exist in first place"
+            HttpStatus.NOT_FOUND, "Share key has expired or does not exist"
         )
         medKitTokenCache.invalidate(hashedKey)
         return addUserToMedKit(medKitId, userId)
