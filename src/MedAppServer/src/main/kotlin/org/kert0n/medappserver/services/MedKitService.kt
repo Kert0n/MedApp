@@ -68,6 +68,8 @@ open class MedKitService(
     }
 
     fun generateMedKitShareKey(medKitId: UUID, userId: UUID): String {
+        // Checking access
+        findByIdForUser(medKitId, userId)
         val key = securityService.generateKey(16)
         medKitTokenCache[securityService.hashToken(key)] = medKitId
         return key
@@ -78,6 +80,9 @@ open class MedKitService(
         logger.debug("Adding user {} to medkit {}", userId, medKitId)
         val medKit = findById(medKitId)
         val user = userService.findById(userId)
+        if (medKit.users.contains(user)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists")
+        }
         medKit.users.add(user)
         user.medKits.add(medKit)
         return medKitRepository.save(medKit)
@@ -89,7 +94,6 @@ open class MedKitService(
         val medKitId = medKitTokenCache.getOrNull(hashedKey) ?: throw ResponseStatusException(
             HttpStatus.NOT_FOUND, "Share key has expired or does not exist"
         )
-        medKitTokenCache.invalidate(hashedKey)
         return addUserToMedKit(medKitId, userId)
     }
 
