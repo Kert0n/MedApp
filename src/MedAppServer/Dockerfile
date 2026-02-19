@@ -1,5 +1,5 @@
 # Multi-stage build for MedAppServer
-FROM gradle:8.7-jdk21 AS build
+FROM gradle:9.3-jdk21 AS build
 WORKDIR /app
 
 # Copy gradle files for dependency caching
