@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
@@ -113,7 +114,7 @@ class MedKitController(
     fun generateKeyToMedKit(
         authentication: Authentication,
         @Parameter(description = "Medkit ID") @PathVariable medKitId: UUID,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Share request")
+        @SwaggerRequestBody(description = "Share request")
         @Valid @RequestBody request: AddUserRequest
     ): String {
         logger.debug("POST /med-kit/{}/share by user {}", medKitId, authentication.userId)
@@ -128,7 +129,7 @@ class MedKitController(
     ])
     fun joinMedKitByKey(
         authentication: Authentication,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Join request")
+        @SwaggerRequestBody(description = "Join request")
         @Valid @RequestBody request: JoinMedKitRequest
     ): MedKitDTO {
         logger.debug("POST /med-kit/join by user {}", authentication.userId)

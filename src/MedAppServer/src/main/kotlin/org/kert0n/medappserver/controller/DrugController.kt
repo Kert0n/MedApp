@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -57,7 +58,7 @@ class DrugController(
     ])
     fun createDrug(
         authentication: Authentication,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Drug details to create")
+        @SwaggerRequestBody(description = "Drug details to create")
         @Valid @RequestBody drugDTO: DrugCreateDTO
     ): DrugDTO {
         logger.debug("POST /drug by user {}: {}", authentication.userId, drugDTO.name)
@@ -75,7 +76,7 @@ class DrugController(
     fun updateDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Drug update details")
+        @SwaggerRequestBody(description = "Drug update details")
         @Valid @RequestBody updateDTO: DrugUpdateDTO
     ): DrugDTO {
         logger.debug("PUT /drug/{} by user {}", id, authentication.userId)
@@ -132,7 +133,7 @@ class DrugController(
     fun consumeDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Consumption details")
+        @SwaggerRequestBody(description = "Consumption details")
         @Valid @RequestBody consumeRequest: ConsumeRequest
     ): DrugDTO {
         logger.debug("PUT /drug/consume/{} by user {}, quantity: {}", id, authentication.userId, consumeRequest.quantity)
@@ -154,7 +155,7 @@ class DrugController(
     fun moveDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Target medicine kit")
+        @SwaggerRequestBody(description = "Target medicine kit")
         @Valid @RequestBody moveRequest: MoveDrugRequest
     ): DrugDTO {
         logger.debug("PUT /drug/move/{} to medkit {} by user {}", id, moveRequest.targetMedKitId, authentication.userId)

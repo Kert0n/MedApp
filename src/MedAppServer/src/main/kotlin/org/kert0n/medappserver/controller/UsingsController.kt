@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotNull
@@ -79,7 +80,7 @@ class UsingsController(
     ])
     fun createUsing(
         authentication: Authentication,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Treatment plan details")
+        @SwaggerRequestBody(description = "Treatment plan details")
         @Valid @RequestBody createDTO: UsingCreateDTO
     ): UsingDTO {
         logger.debug("POST /using by user {} for drug {}", authentication.userId, createDTO.drugId)
@@ -101,7 +102,7 @@ class UsingsController(
     fun updateUsing(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable drugId: UUID,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Updated treatment plan")
+        @SwaggerRequestBody(description = "Updated treatment plan")
         @Valid @RequestBody updateDTO: UsingUpdateDTO
     ): UsingDTO {
         logger.debug("PUT /using/drug/{} by user {}", drugId, authentication.userId)
@@ -123,7 +124,7 @@ class UsingsController(
     fun recordRegularUsing(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable drugId: UUID,
-        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Intake details")
+        @SwaggerRequestBody(description = "Intake details")
         @Valid @RequestBody intakeRequest: IntakeRequest
     ): UsingDTO {
         logger.debug("POST /using/drug/{}/intake by user {}, quantity: {}",
