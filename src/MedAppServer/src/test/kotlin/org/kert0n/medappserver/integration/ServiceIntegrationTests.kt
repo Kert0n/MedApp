@@ -82,14 +82,13 @@ class ServiceIntegrationTests() {
         entityManager.flush()
 
         assertFailsWith<ResponseStatusException> {
-            drugService.create(
+            medKitDrugServices.createDrugInMedkit(
                 DrugCreateDTO(
                     name = "Aspirin",
                     quantity = 100.0,
                     quantityUnit = "mg",
                     medKitId = medKit.id
                 ),
-                medKit,
                 user2.id
             )
         }
@@ -294,7 +293,7 @@ class ServiceIntegrationTests() {
         medKitService.addUserToMedKit(medKit.id, user2.id)
         entityManager.flush()
 
-        medKitService.removeUserFromMedKit(medKit.id, user2.id)
+        medKitDrugServices.removeUserFromMedKit(medKit.id, user2.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -390,7 +389,7 @@ class ServiceIntegrationTests() {
         entityManager.flush()
 
         val updatedUsing = usingService.recordIntake(user.id, drug.id, 10.0)
-        assertEquals(20.0, updatedUsing.plannedAmount)
+        assertEquals(20.0, updatedUsing!!.plannedAmount)
 
         val updatedDrug = drugService.findById(drug.id)
         assertEquals(90.0, updatedDrug.quantity)

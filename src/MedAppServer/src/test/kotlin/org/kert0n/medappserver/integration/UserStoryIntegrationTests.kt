@@ -6,6 +6,7 @@ import org.kert0n.medappserver.controller.UsingCreateDTO
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.db.repository.*
 import org.kert0n.medappserver.services.DrugService
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.services.MedKitService
 import org.kert0n.medappserver.services.UsingService
 import org.springframework.beans.factory.annotation.Autowired
@@ -53,6 +54,9 @@ class UserStoryIntegrationTests {
 
     @Autowired
     private lateinit var medKitService: MedKitService
+
+    @Autowired
+    private lateinit var medKitDrugServices: MedKitDrugServices
 
     @Autowired
     private lateinit var usingService: UsingService
@@ -214,7 +218,7 @@ class UserStoryIntegrationTests {
         assertEquals(2, loadedMedkit.users.size)
 
         // Bob leaves (drugs stay)
-        medKitService.removeUserFromMedKit(medkit.id, bob.id, deleteAllDrugs = false)
+        medKitDrugServices.removeUserFromMedKit(medkit.id, bob.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -280,7 +284,7 @@ class UserStoryIntegrationTests {
         assertEquals(2, medKitService.findAllByUser(user.id).size)
 
         // Delete old medkit and move drugs
-        medKitService.delete(oldMedkit.id, user.id, newMedkit.id)
+        medKitDrugServices.delete(oldMedkit.id, user.id, newMedkit.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -624,7 +628,7 @@ class UserStoryIntegrationTests {
         assertEquals(3, medkit.users.size)
 
         // Child leaves the medkit
-        medKitService.removeUserFromMedKit(familyKit.id, child.id)
+        medKitDrugServices.removeUserFromMedKit(familyKit.id, child.id)
         entityManager.flush()
         entityManager.clear()
 
