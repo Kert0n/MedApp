@@ -12,6 +12,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.services.DrugService
 import org.kert0n.medappserver.services.UsingService
 import org.kert0n.medappserver.services.VidalDrugService
@@ -27,10 +28,10 @@ import java.util.*
 @Tag(name = "Drug Management", description = "APIs for managing drugs in medicine kits")
 class DrugController(
     private val drugService: DrugService,
-    private val usingService: UsingService,
-    private val vidalDrugService: VidalDrugService
+    private val vidalDrugService: VidalDrugService,
+    private val medKitDrugServices: MedKitDrugServices
 ) {
-    
+
     private val logger = LoggerFactory.getLogger(DrugController::class.java)
 
     @GetMapping("/{id}")
@@ -62,7 +63,7 @@ class DrugController(
         @Valid @RequestBody drugDTO: DrugCreateDTO
     ): DrugDTO {
         logger.debug("POST /drug by user {}: {}", authentication.userId, drugDTO.name)
-        val drug = drugService.create(drugDTO, authentication.userId)
+        val drug = medKitDrugServices.createDrugInMedkit(drugDTO, authentication.userId)
         return drugService.toDrugDTO(drug)
     }
 
@@ -159,7 +160,7 @@ class DrugController(
         @Valid @RequestBody moveRequest: MoveDrugRequest
     ): DrugDTO {
         logger.debug("PUT /drug/move/{} to medkit {} by user {}", id, moveRequest.targetMedKitId, authentication.userId)
-        val drug = drugService.moveDrug(id, moveRequest.targetMedKitId, authentication.userId)
+        val drug = medKitDrugServices.moveDrug(id, moveRequest.targetMedKitId, authentication.userId)
         return drugService.toDrugDTO(drug)
     }
 
@@ -185,7 +186,9 @@ class DrugController(
                 name = vd.name,
                 formType = vd.formType?.name,
                 category = vd.category,
+                quantityUnit = vd.quantityUnit?.name,
                 manufacturer = vd.manufacturer,
+                country = vd.country,
                 description = vd.description
             )
         }
@@ -215,7 +218,9 @@ class DrugController(
             name = vd.name,
             formType = vd.formType?.name,
             category = vd.category,
+            quantityUnit = vd.quantityUnit?.name,
             manufacturer = vd.manufacturer,
+            country = vd.country,
             description = vd.description
         )
     }
@@ -256,8 +261,12 @@ data class DrugTemplateDTO(
     val formType: String?,
     @Schema(description = "Category")
     val category: String?,
+    @Schema(description = "Quantity unit")
+    val quantityUnit: String?,
     @Schema(description = "Manufacturer")
     val manufacturer: String?,
+    @Schema(description = "Country")
+    val country: String?,
     @Schema(description = "Description")
     val description: String?
 )

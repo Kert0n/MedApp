@@ -2,6 +2,7 @@ package org.kert0n.medappserver.controller
 
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.services.MedKitService
 import org.mockito.kotlin.*
@@ -25,8 +26,10 @@ import java.util.*
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-class MedKitControllerTest {
+class MedKitControllerTest() {
 
+    @Autowired
+    private lateinit var medKitDrugServices: MedKitDrugServices
     @Autowired
     private lateinit var context: WebApplicationContext
 
@@ -72,7 +75,7 @@ class MedKitControllerTest {
         val medKit = MedKit(id = medKitId)
         val medKitDTO = MedKitDTO(id = medKitId, drugs = emptySet())
         whenever(medKitService.findByIdForUser(medKitId, userId)).thenReturn(medKit)
-        whenever(medKitService.toMedKitDTO(medKit)).thenReturn(medKitDTO)
+        whenever(medKitDrugServices.toMedKitDTO(medKit)).thenReturn(medKitDTO)
 
         mockMvc.perform(
             get("/med-kit/$medKitId")
@@ -136,7 +139,7 @@ class MedKitControllerTest {
         val medKit = MedKit(id = medKitId)
         val medKitDTO = MedKitDTO(id = medKitId, drugs = emptySet())
         whenever(medKitService.joinMedKitByKey("share-key-123", userId)).thenReturn(medKit)
-        whenever(medKitService.toMedKitDTO(medKit)).thenReturn(medKitDTO)
+        whenever(medKitDrugServices.toMedKitDTO(medKit)).thenReturn(medKitDTO)
 
         val joinRequest = MedKitController.JoinMedKitRequest(key = "share-key-123")
 

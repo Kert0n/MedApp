@@ -47,7 +47,7 @@ class MedAppIntegrationTest {
             quantityUnit = "mg",
             medKitId = medKit.id
         )
-        val drug = drugService.create(drugDTO, user.id)
+        val drug = drugService.create(drugDTO, medKit,user.id)
         assertNotNull(drug.id)
         assertEquals("Aspirin", drug.name)
         assertEquals(100.0, drug.quantity)
@@ -98,7 +98,7 @@ class MedAppIntegrationTest {
                 quantity = 50.0,
                 quantityUnit = "mg",
                 medKitId = medKit.id
-            ),
+            ),medKit,
             user.id
         )
 

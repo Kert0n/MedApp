@@ -663,7 +663,7 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         // Move drug to travel kit
-        drugService.moveDrug(painkiller.id, travelKit.id, user.id)
+        drugService.moveDrug(painkiller.id, travelKit, user.id)
         entityManager.flush()
         entityManager.clear()
 

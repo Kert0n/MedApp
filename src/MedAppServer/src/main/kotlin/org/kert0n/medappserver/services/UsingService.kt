@@ -108,7 +108,7 @@ class UsingService(
     }
 
     @Transactional
-    fun recordIntake(userId: UUID, drugId: UUID, quantityConsumed: Double): Using {
+    fun recordIntake(userId: UUID, drugId: UUID, quantityConsumed: Double): Using? {
         logger.debug("Recording intake for user {} and drug {}, quantity: {}", userId, drugId, quantityConsumed)
         val using = findByUserAndDrug(userId, drugId)
         val drug = using.drug
@@ -129,6 +129,10 @@ class UsingService(
         
         // Update planned amount
         using.plannedAmount = maxOf(0.0, using.plannedAmount - quantityConsumed)
+        if (using.plannedAmount == 0.0) {
+            usingRepository.delete(using)
+            return null
+        }
         using.lastModified = Instant.now()
         
         return usingRepository.save(using)
@@ -141,8 +145,11 @@ class UsingService(
         usingRepository.delete(using)
     }
 
+
+
     @Transactional(readOnly = true)
     fun toUsingDTO(using: Using): UsingDTO {
+
         return UsingDTO(
             userId = using.user.id,
             drugId = using.drug.id,

@@ -2,6 +2,7 @@ package org.kert0n.medappserver.integration
 
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Test
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.controller.DrugCreateDTO
 import org.kert0n.medappserver.controller.DrugUpdateDTO
 import org.kert0n.medappserver.controller.UsingCreateDTO
@@ -17,13 +18,18 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.util.*
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-class ServiceIntegrationTests {
+class ServiceIntegrationTests() {
 
+    @Autowired
+    private lateinit var medKitDrugServices: MedKitDrugServices
     @Autowired
     private lateinit var userRepository: UserRepository
 
@@ -58,6 +64,7 @@ class ServiceIntegrationTests {
                 quantityUnit = "mg",
                 medKitId = medKit.id
             ),
+            medKit,
             user.id
         )
 
@@ -82,6 +89,7 @@ class ServiceIntegrationTests {
                     quantityUnit = "mg",
                     medKitId = medKit.id
                 ),
+                medKit,
                 user2.id
             )
         }
@@ -93,6 +101,7 @@ class ServiceIntegrationTests {
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
             DrugCreateDTO(name = "Old Name", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit,
             user.id
         )
         entityManager.flush()
@@ -112,7 +121,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         entityManager.flush()
@@ -126,7 +135,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 10.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 10.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         entityManager.flush()
@@ -142,12 +151,12 @@ class ServiceIntegrationTests {
         val medKit1 = medKitService.createNew(user.id)
         val medKit2 = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 50.0, quantityUnit = "mg", medKitId = medKit1.id),
+            DrugCreateDTO(name = "Drug", quantity = 50.0, quantityUnit = "mg", medKitId = medKit1.id), medKit1,
             user.id
         )
         entityManager.flush()
 
-        val moved = drugService.moveDrug(drug.id, medKit2.id, user.id)
+        val moved = drugService.moveDrug(drug.id, medKit2, user.id)
         assertEquals(medKit2.id, moved.medKit.id)
     }
 
@@ -156,7 +165,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         entityManager.flush()
@@ -174,7 +183,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         entityManager.flush()
@@ -194,7 +203,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 25.0))
@@ -304,16 +313,16 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         drugService.create(
-            DrugCreateDTO(name = "Drug A", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug A", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         drugService.create(
-            DrugCreateDTO(name = "Drug B", quantity = 30.0, quantityUnit = "tablets", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug B", quantity = 30.0, quantityUnit = "tablets", medKitId = medKit.id), medKit,
             user.id
         )
         entityManager.flush()
 
-        val dto = medKitService.toMedKitDTO(medKit)
+        val dto = medKitDrugServices.toMedKitDTO(medKit)
         assertEquals(medKit.id, dto.id)
         assertEquals(2, dto.drugs.size)
     }
@@ -325,7 +334,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         entityManager.flush()
@@ -341,7 +350,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         entityManager.flush()
@@ -359,7 +368,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
@@ -374,7 +383,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
@@ -392,7 +401,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
@@ -411,7 +420,7 @@ class ServiceIntegrationTests {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
             user.id
         )
         val using = usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBod
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.services.MedKitService
 import org.kert0n.medappserver.services.userId
 import org.slf4j.Logger
@@ -25,7 +26,8 @@ import java.util.*
 @Tag(name = "MedKit Management", description = "APIs for managing medicine kits")
 class MedKitController(
     private val medKitService: MedKitService,
-    private val logger: Logger = LoggerFactory.getLogger(MedKitController::class.java)
+    private val logger: Logger = LoggerFactory.getLogger(MedKitController::class.java),
+    private val medKitDrugServices: MedKitDrugServices
 ) {
     data class MedKitCreatedResponse(
         @NotNull
@@ -85,7 +87,7 @@ class MedKitController(
     ): MedKitDTO {
         logger.debug("GET /med-kit/{} by user {}", id, authentication.userId)
         val medKit = medKitService.findByIdForUser(id, authentication.userId)
-        return medKitService.toMedKitDTO(medKit)
+        return medKitDrugServices.toMedKitDTO(medKit)
     }
 
     @GetMapping
@@ -134,7 +136,7 @@ class MedKitController(
     ): MedKitDTO {
         logger.debug("POST /med-kit/join by user {}", authentication.userId)
         val medKit = medKitService.joinMedKitByKey(request.key, authentication.userId)
-        return medKitService.toMedKitDTO(medKit)
+        return medKitDrugServices.toMedKitDTO(medKit)
     }
 
     @DeleteMapping("/{id}/leave")
@@ -149,7 +151,7 @@ class MedKitController(
         @Parameter(description = "Medkit ID") @PathVariable id: UUID
     ) {
         logger.debug("DELETE /med-kit/{}/leave by user {}", id, authentication.userId)
-        medKitService.removeUserFromMedKit(id, authentication.userId)
+        medKitDrugServices.removeUserFromMedKit(id, authentication.userId)
     }
 
     @DeleteMapping("/{id}")
@@ -166,7 +168,7 @@ class MedKitController(
         @RequestParam(required = false) transferToMedKitId: UUID?
     ) {
         logger.debug("DELETE /med-kit/{} by user {}, transfer to: {}", id, authentication.userId, transferToMedKitId)
-        medKitService.delete(id, authentication.userId, transferToMedKitId)
+        medKitDrugServices.delete(id, authentication.userId, transferToMedKitId)
     }
 }
 

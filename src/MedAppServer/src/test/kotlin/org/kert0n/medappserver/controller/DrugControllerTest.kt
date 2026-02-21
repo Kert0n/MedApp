@@ -2,6 +2,7 @@ package org.kert0n.medappserver.controller
 
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.db.model.Drug
 import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.db.model.parsed.VidalDrug
@@ -41,6 +42,9 @@ class DrugControllerTest {
 
     @MockitoBean
     private lateinit var drugService: DrugService
+
+    @MockitoBean
+    private lateinit var medKitDrugServices: MedKitDrugServices
 
     @MockitoBean
     private lateinit var usingService: UsingService
@@ -128,7 +132,7 @@ class DrugControllerTest {
     fun `POST create drug - creates and returns drug`() {
         val drug = createTestDrug()
         val dto = createTestDrugDTO()
-        whenever(drugService.create(any(), eq(userId))).thenReturn(drug)
+        whenever(medKitDrugServices.createDrugInMedkit(any(), eq(userId))).thenReturn(drug)
         whenever(drugService.toDrugDTO(drug)).thenReturn(dto)
 
         val createDTO = DrugCreateDTO(
@@ -218,7 +222,7 @@ class DrugControllerTest {
         val targetMedKitId = UUID.randomUUID()
         val drug = createTestDrug()
         val dto = createTestDrugDTO()
-        whenever(drugService.moveDrug(eq(drugId), eq(targetMedKitId), eq(userId))).thenReturn(drug)
+        whenever(medKitDrugServices.moveDrug(eq(drugId), eq(targetMedKitId), eq(userId))).thenReturn(drug)
         whenever(drugService.toDrugDTO(drug)).thenReturn(dto)
 
         val moveRequest = MoveDrugRequest(targetMedKitId = targetMedKitId)

@@ -2,6 +2,7 @@ package org.kert0n.medappserver.controller
 
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.services.MedKitService
 import org.mockito.kotlin.*
 import org.springframework.beans.factory.annotation.Autowired
@@ -20,8 +21,9 @@ import java.util.*
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-class UserControllerTest {
+class UserControllerTest() {
 
+    @Autowired private lateinit var medKitDrugServices: MedKitDrugServices
     @Autowired
     private lateinit var context: WebApplicationContext
 
@@ -51,7 +53,7 @@ class UserControllerTest {
         val medKitDTO = MedKitDTO(id = medKitId, drugs = setOf(drugDTO))
         val medKits = listOf(org.kert0n.medappserver.db.model.MedKit(id = medKitId))
         whenever(medKitService.findAllByUser(userId)).thenReturn(medKits)
-        whenever(medKitService.toMedKitDTO(any())).thenReturn(medKitDTO)
+        whenever(medKitDrugServices.toMedKitDTO(any())).thenReturn(medKitDTO)
 
         mockMvc.perform(
             get("/user")

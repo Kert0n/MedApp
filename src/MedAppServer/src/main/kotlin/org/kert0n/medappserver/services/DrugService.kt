@@ -4,9 +4,9 @@ import org.kert0n.medappserver.controller.DrugDTO
 import org.kert0n.medappserver.controller.DrugCreateDTO
 import org.kert0n.medappserver.controller.DrugUpdateDTO
 import org.kert0n.medappserver.db.model.Drug
+import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.db.repository.DrugRepository
 import org.slf4j.LoggerFactory
-import org.springframework.context.annotation.Lazy
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -16,9 +16,7 @@ import java.util.*
 
 @Service
 class DrugService(
-    private val drugRepository: DrugRepository,
-    @Lazy private val medKitService: MedKitService,
-    private val userService: UserService
+    private val drugRepository: DrugRepository
 ) {
 
     private val logger = LoggerFactory.getLogger(DrugService::class.java)
@@ -52,11 +50,9 @@ class DrugService(
     }
 
     @Transactional
-    fun create(createDTO: DrugCreateDTO, userId: UUID): Drug {
+    fun create(createDTO: DrugCreateDTO,medKit: MedKit, userId: UUID): Drug {
         logger.debug("Creating drug: {} for user: {}", createDTO.name, userId)
 
-        val medKit = medKitService.findByIdForUser(createDTO.medKitId, userId)
-        
         val drug = Drug(
             name = createDTO.name,
             quantity = createDTO.quantity,
@@ -106,11 +102,10 @@ class DrugService(
     }
 
     @Transactional
-    fun moveDrug(drugId: UUID, targetMedKitId: UUID, userId: UUID): Drug {
-        logger.debug("Moving drug {} to medkit {}", drugId, targetMedKitId)
+    fun moveDrug(drugId: UUID, targetMedKit: MedKit, userId: UUID): Drug {
+        logger.debug("Moving drug {} to medkit {}", drugId, targetMedKit)
         
         val drug = findByIdForUser(drugId, userId)
-        val targetMedKit = medKitService.findByIdForUser(targetMedKitId, userId)
         drug.medKit = targetMedKit
         return drugRepository.save(drug)
     }

@@ -147,13 +147,8 @@ class VidalDrugFuzzySearchTest {
 
     @Test
     fun `fuzzySearchByName eagerly loads formType - no LazyInitializationException`() {
-        // This test runs WITHOUT @Transactional to simulate real runtime behavior
-        // where spring.jpa.open-in-view=false causes the session to close after the query.
-        // Previously this would throw LazyInitializationException when accessing formType.name
         val results = vidalDrugRepository.fuzzySearchByName("аспир", 10)
         assertTrue(results.isNotEmpty())
-
-        // Access formType.name OUTSIDE any transaction — this is what the controller does
         val formTypeName = results.first { it.formType != null }.formType?.name
         assertNotNull(formTypeName, "FormType should be eagerly loaded and accessible outside transaction")
         assertEquals("таблетки", formTypeName)
@@ -161,11 +156,8 @@ class VidalDrugFuzzySearchTest {
 
     @Test
     fun `service fuzzySearchByName returns results with accessible formType`() {
-        // Test through the service layer, outside a transaction, simulating controller usage
         val results = vidalDrugService.fuzzySearchByName("аспир", 10)
         assertTrue(results.isNotEmpty())
-
-        // Access formType.name OUTSIDE any transaction — this is exactly what the controller does
         val drugWithForm = results.first { it.formType != null }
         assertNotNull(drugWithForm.formType?.name, "FormType should be accessible via service results")
     }
@@ -178,9 +170,7 @@ class VidalDrugFuzzySearchTest {
 
     @Test
     fun `service fuzzySearchByName sanitizes special characters`() {
-        // These special chars should not break the query
         val results = vidalDrugService.fuzzySearchByName("аспир%", 10)
-        // Should not throw, and % should be treated as literal
         assertNotNull(results)
     }
 }

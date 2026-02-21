@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.services.MedKitService
 import org.kert0n.medappserver.services.userId
 import org.slf4j.LoggerFactory
@@ -19,7 +20,8 @@ import java.util.*
 @RequestMapping("/user")
 @Tag(name = "User Data", description = "Endpoints for user profile and synchronization data")
 class UserController(
-    private val medKitService: MedKitService
+    private val medKitService: MedKitService,
+    private val medKitDrugServices: MedKitDrugServices
 ) {
 
     private val logger = LoggerFactory.getLogger(UserController::class.java)
@@ -39,7 +41,7 @@ class UserController(
     ])
     fun getAllDataForUser(authentication: Authentication): UserDto {
         logger.debug("GET /user by user {}", authentication.userId)
-        val medKitDTOs = medKitService.findAllByUser(authentication.userId).map { medKitService.toMedKitDTO(it) }.toSet()
+        val medKitDTOs = medKitService.findAllByUser(authentication.userId).map { medKitDrugServices.toMedKitDTO(it) }.toSet()
         return UserDto(
             id = authentication.userId,
             medKits = medKitDTOs

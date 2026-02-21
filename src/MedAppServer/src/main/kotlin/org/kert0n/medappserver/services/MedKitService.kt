@@ -1,6 +1,7 @@
 package org.kert0n.medappserver.services
 
 import com.sksamuel.aedile.core.Cache
+import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.controller.MedKitDTO
 import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.db.model.User
@@ -21,8 +22,7 @@ open class MedKitService(
     private val securityService: SecurityService,
     private val logger: Logger = LoggerFactory.getLogger(MedKitService::class.java),
     private val medKitTokenCache: Cache<String, UUID>,
-    private val userService: UserService,
-    private val drugService: DrugService
+    private val userService: UserService
 ) {
     @Transactional
     fun createNew(userId: UUID): MedKit {
@@ -99,54 +99,21 @@ open class MedKitService(
     }
 
     @Transactional
-    fun removeUserFromMedKit(medKitId: UUID, userId: UUID, deleteAllDrugs: Boolean = false) {
-        logger.debug("Removing user {} from medkit {}, deleteAllDrugs: {}", userId, medKitId, deleteAllDrugs)
-        
-        val medKit = findByIdForUser(medKitId, userId)
-        val user = userService.findById(userId)
-        
-        // Remove user's treatment plans for drugs in this medkit to prevent orphaned reservations.
-        val drugsInMedKit = drugService.findAllByMedKit(medKitId)
-        drugsInMedKit.forEach { drug ->
-            drug.usings.removeIf { it.user.id == userId }
-        }
+    fun removeUserFromMedKit(medKit: MedKit, user: User) {
+        logger.debug("Removing user {} from medkit {}, deleteAllDrugs: {}", user.id, medKit.id)
+
         user.medKits.remove(medKit)
         medKit.users.remove(user)
         if (medKit.users.isEmpty()) {
             // This user was the last
-            logger.debug("No users left in medkit {}, deleting", medKitId)
+            logger.debug("No users left in medkit {}, deleting", medKit.id)
             medKitRepository.delete(medKit)
         } else {
             medKitRepository.save(medKit)
         }
     }
 
-    @Transactional
-    fun delete(medKitId: UUID, userId: UUID, transferToMedKitId: UUID? = null) {
-        logger.debug("Deleting medkit {} by user {}, transfer to: {}", medKitId, userId, transferToMedKitId)
-        
-        val medKit = findByIdForUser(medKitId, userId)
-        
-        if (transferToMedKitId != null) {
-            val targetMedKit = findByIdForUser(transferToMedKitId, userId)
-            
-            // Transfer all drugs to target medkit
-            val drugs = drugService.findAllByMedKit(medKitId)
-            drugs.forEach { drug ->
-                drugService.moveDrug(drug.id, transferToMedKitId, userId)
-            }
-        }
-        
-        // Remove this user from medkit (will delete if last user)
-        removeUserFromMedKit(medKitId, userId)
-    }
 
-    @Transactional(readOnly = true)
-    fun toMedKitDTO(medKit: MedKit): MedKitDTO {
-        val drugs = drugService.findAllByMedKit(medKit.id)
-        return MedKitDTO(
-            id = medKit.id,
-            drugs = (drugs.map{drugService.toDrugDTO(it)}).toSet()
-        )
-    }
+
+
 }

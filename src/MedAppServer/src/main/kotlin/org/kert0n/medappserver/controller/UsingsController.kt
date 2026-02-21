@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
-import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotNull
@@ -20,6 +19,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
 import java.time.Instant
 import java.util.*
+import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
 @RequestMapping("/using")
@@ -126,11 +126,13 @@ class UsingsController(
         @Parameter(description = "Drug ID") @PathVariable drugId: UUID,
         @SwaggerRequestBody(description = "Intake details")
         @Valid @RequestBody intakeRequest: IntakeRequest
-    ): UsingDTO {
+    ): UsingDTO? {
         logger.debug("POST /using/drug/{}/intake by user {}, quantity: {}",
             drugId, authentication.userId, intakeRequest.quantityConsumed)
-        val using = usingService.recordIntake(authentication.userId, drugId, intakeRequest.quantityConsumed)
-        return usingService.toUsingDTO(using)
+
+        return usingService.recordIntake(authentication.userId, drugId, intakeRequest.quantityConsumed)?.let { using ->
+            usingService.toUsingDTO(using)
+        }
     }
 
     @DeleteMapping("/drug/{drugId}")
