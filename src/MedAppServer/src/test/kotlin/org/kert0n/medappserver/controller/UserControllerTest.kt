@@ -23,7 +23,7 @@ import java.util.*
 @ActiveProfiles("test")
 class UserControllerTest() {
 
-    @Autowired private lateinit var medKitDrugServices: MedKitDrugServices
+    @MockitoBean private lateinit var medKitDrugServices: MedKitDrugServices
     @Autowired
     private lateinit var context: WebApplicationContext
 

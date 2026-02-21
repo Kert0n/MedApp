@@ -28,7 +28,7 @@ import java.util.*
 @ActiveProfiles("test")
 class MedKitControllerTest() {
 
-    @Autowired
+    @MockitoBean
     private lateinit var medKitDrugServices: MedKitDrugServices
     @Autowired
     private lateinit var context: WebApplicationContext
@@ -168,7 +168,7 @@ class MedKitControllerTest() {
 
     @Test
     fun `DELETE leave medkit - returns 204`() {
-        doNothing().whenever(medKitService).removeUserFromMedKit(medKitId, userId)
+        doNothing().whenever(medKitDrugServices).removeUserFromMedKit(medKitId, userId)
 
         mockMvc.perform(
             delete("/med-kit/$medKitId/leave")
@@ -179,7 +179,7 @@ class MedKitControllerTest() {
 
     @Test
     fun `DELETE medkit - returns 204`() {
-        doNothing().whenever(medKitService).delete(medKitId, userId, null)
+        doNothing().whenever(medKitDrugServices).delete(medKitId, userId, null)
 
         mockMvc.perform(
             delete("/med-kit/$medKitId")
@@ -191,7 +191,7 @@ class MedKitControllerTest() {
     @Test
     fun `DELETE medkit with transfer - returns 204`() {
         val transferId = UUID.randomUUID()
-        doNothing().whenever(medKitService).delete(medKitId, userId, transferId)
+        doNothing().whenever(medKitDrugServices).delete(medKitId, userId, transferId)
 
         mockMvc.perform(
             delete("/med-kit/$medKitId")
