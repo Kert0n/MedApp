@@ -389,7 +389,8 @@ class ServiceIntegrationTests() {
         entityManager.flush()
 
         val updatedUsing = usingService.recordIntake(user.id, drug.id, 10.0)
-        assertEquals(20.0, updatedUsing!!.plannedAmount)
+        assertNotNull(updatedUsing, "recordIntake should return a non-null Using when planned amount remains")
+        assertEquals(20.0, updatedUsing.plannedAmount)
 
         val updatedDrug = drugService.findById(drug.id)
         assertEquals(90.0, updatedDrug.quantity)

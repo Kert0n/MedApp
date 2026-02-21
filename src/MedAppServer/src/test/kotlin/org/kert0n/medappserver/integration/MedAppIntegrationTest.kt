@@ -62,7 +62,8 @@ class MedAppIntegrationTest {
 
         // 5. Record intake
         val updatedUsing = usingService.recordIntake(user.id, drug.id, 10.0)
-        assertEquals(20.0, updatedUsing!!.plannedAmount)
+        kotlin.test.assertNotNull(updatedUsing, "recordIntake should return a non-null Using when planned amount remains")
+        assertEquals(20.0, updatedUsing.plannedAmount)
 
         // 6. Verify drug quantity reduced
         val updatedDrug = drugService.findById(drug.id)
