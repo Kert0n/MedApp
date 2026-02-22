@@ -17,22 +17,30 @@ services:
     networks:
       - medapp-network
   
-  medapp-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      - 'SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/medapp-server-db'
-      - 'SPRING_DATASOURCE_USERNAME=myuser'
-      - 'SPRING_DATASOURCE_PASSWORD=secret'
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - medapp-network
-    restart: unless-stopped
+#  medapp-server:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    environment:
+#      - 'SPRING_PROFILES_ACTIVE=prod'
+#      - 'SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/medapp-server-db'
+#      - 'SPRING_DATASOURCE_USERNAME=myuser'
+#      - 'SPRING_DATASOURCE_PASSWORD=secret'
+#      - 'SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT=60000'
+#    ports:
+#      - "8080:8080"
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#    networks:
+#      - medapp-network
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 40s
+#    restart: unless-stopped
 
 volumes:
   postgres_data:

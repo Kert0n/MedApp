@@ -182,7 +182,7 @@ replay_pid*
 
 /init-scripts/*
 /htmlReport
-application.properties
+application-prod.properties
 /src/MedAppServer/src/main/resources/certs/private.pem
 /src/MedAppServer/src/main/resources/certs/public.pem
 /src/main/resources/certs/private.pem

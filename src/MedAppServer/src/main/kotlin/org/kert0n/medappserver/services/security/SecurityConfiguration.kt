@@ -53,7 +53,7 @@ class SecurityConfiguration(
                 auth
                     .requestMatchers(
                         "/auth/**",
-                        "/swagger-ui",
+                        "/swagger",
                         "/swagger-ui/**",
                         "/v3/api-docs/**"
                     )
