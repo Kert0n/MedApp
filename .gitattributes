@@ -1,2 +1,2 @@
-src/scrapper/dump/*.html linguist-vendored=true
-src/MedAppServer/htmlReport/* linguist-vendored=true
+src/scrapper/dump/**/*.html linguist-vendored=true
+src/MedAppServer/htmlReport/** linguist-vendored=true
