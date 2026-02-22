@@ -22,14 +22,14 @@ class SecurityService(
     private val decoder: JwtDecoder,
     @Value($$"${authentication.termInMinutes}") private val authenticationTerm: Long,
     @Value($$"${registration.timeout.BanNumber}") private val registrationNumber: Long,
-    private val successfulRegistrationsCache: Cache<String, Int>,
-    private val hashProvider: MessageDigest=MessageDigest.getInstance("SHA-256")
+    private val successfulRegistrationsCache: Cache<String, Int>
     ) {
 
     fun generateKey(size: Int) = Base64.encode(ByteArray(size).also { SecureRandom().nextBytes(it) })
     fun check(raw: String, hashedPassword: String): Boolean = passwordEncoder.matches(raw, hashedPassword)
     fun hashPassword(rawPassword: String): String = passwordEncoder.encode(rawPassword)!!
-    fun hashToken(token: String): String=Base64.encode(hashProvider.digest(token.toByteArray()))
+    fun hashToken(token: String): String =
+        Base64.encode(MessageDigest.getInstance("SHA-256").digest(token.toByteArray()))
 
 
     fun generateToken(user: User, termInMinutes: Long = authenticationTerm): String {
