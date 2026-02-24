@@ -2,33 +2,84 @@
 
 package org.kert0n.medappserver.db.repository
 
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.kert0n.medappserver.db.model.Drug
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
+import org.kert0n.medappserver.db.table.UserDrugs
+import org.kert0n.medappserver.db.table.UserMedKits
+import org.kert0n.medappserver.db.table.Usings
+import org.springframework.stereotype.Repository
 import java.util.*
 
-interface DrugRepository: JpaRepository<Drug, UUID> {
+@Repository
+class DrugRepository {
 
-    @Query("SELECT d FROM Drug d WHERE d.medKit.id = :medKitId")
-    fun findAllByMedKitId(@Param("medKitId") medKitId: UUID): List<Drug>
+    fun save(drug: Drug): Drug {
+        UserDrugs.upsert {
+            it[id] = drug.id
+            it[name] = drug.name
+            it[quantity] = drug.quantity
+            it[quantityUnit] = drug.quantityUnit
+            it[formType] = drug.formType
+            it[category] = drug.category
+            it[manufacturer] = drug.manufacturer
+            it[country] = drug.country
+            it[description] = drug.description
+            it[medKitId] = drug.medKitId
+        }
+        return drug
+    }
 
-    @Query("""
-        SELECT DISTINCT d FROM Drug d 
-        JOIN d.usings u
-        WHERE u.user.id = :userId
-    """)
-    fun findByUsingsUserId(@Param("userId") userId: UUID): List<Drug>
+    fun findById(drugId: UUID): Drug? {
+        return UserDrugs.selectAll().where { UserDrugs.id eq drugId }
+            .singleOrNull()
+            ?.toDrug()
+    }
 
-    @Query("""
-        SELECT d FROM Drug d 
-        JOIN d.medKit mk
-        JOIN mk.users u
-        WHERE d.id = :drugId AND u.id = :userId
-    """)
-    fun findByIdAndMedKitUsersId(@Param("drugId") drugId: UUID, @Param("userId") userId: UUID): Drug?
+    fun delete(drug: Drug) {
+        UserDrugs.deleteWhere { id eq drug.id }
+    }
 
-    @Query("SELECT COALESCE(SUM(u.plannedAmount), 0.0) FROM Using u WHERE u.drug.id = :drugId")
-    fun sumPlannedAmount(@Param("drugId") drugId: UUID): Double
+    fun findAllByMedKitId(medKitId: UUID): List<Drug> {
+        return UserDrugs.selectAll().where { UserDrugs.medKitId eq medKitId }
+            .map { it.toDrug() }
+    }
 
+    fun findByUsingsUserId(userId: UUID): List<Drug> {
+        return UserDrugs.innerJoin(Usings, { UserDrugs.id }, { drugId })
+            .select(UserDrugs.columns)
+            .where { Usings.userId eq userId }
+            .withDistinct()
+            .map { it.toDrug() }
+    }
+
+    fun findByIdAndMedKitUsersId(drugId: UUID, userId: UUID): Drug? {
+        return UserDrugs.innerJoin(UserMedKits, { UserDrugs.medKitId }, { medKitId })
+            .select(UserDrugs.columns)
+            .where { (UserDrugs.id eq drugId) and (UserMedKits.userId eq userId) }
+            .singleOrNull()
+            ?.toDrug()
+    }
+
+    fun sumPlannedAmount(drugId: UUID): Double {
+        return Usings.select(Usings.plannedAmount.sum())
+            .where { Usings.drugId eq drugId }
+            .singleOrNull()
+            ?.get(Usings.plannedAmount.sum()) ?: 0.0
+    }
+
+    private fun ResultRow.toDrug(): Drug {
+        return Drug(
+            id = this[UserDrugs.id],
+            name = this[UserDrugs.name],
+            quantity = this[UserDrugs.quantity],
+            quantityUnit = this[UserDrugs.quantityUnit],
+            formType = this[UserDrugs.formType],
+            category = this[UserDrugs.category],
+            manufacturer = this[UserDrugs.manufacturer],
+            country = this[UserDrugs.country],
+            description = this[UserDrugs.description],
+            medKitId = this[UserDrugs.medKitId]
+        )
+    }
 }

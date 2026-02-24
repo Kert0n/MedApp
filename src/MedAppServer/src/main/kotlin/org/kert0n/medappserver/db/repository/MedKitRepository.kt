@@ -1,46 +1,85 @@
 package org.kert0n.medappserver.db.repository
 
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.kert0n.medappserver.db.model.MedKit
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
+import org.kert0n.medappserver.db.table.MedKits
+import org.kert0n.medappserver.db.table.UserDrugs
+import org.kert0n.medappserver.db.table.UserMedKits
+import org.springframework.stereotype.Repository
 import java.util.*
 
-interface MedKitRepository: JpaRepository<MedKit, UUID> {
-    
-    @Query("""
-        SELECT mk FROM MedKit mk
-        JOIN mk.users u
-        WHERE u.id = :userId
-    """)
-    fun findByUsersId(@Param("userId") userId: UUID): List<MedKit>
+@Repository
+class MedKitRepository {
 
-    @Query("""
-        SELECT mk FROM MedKit mk
-        LEFT JOIN FETCH mk.drugs
-        WHERE mk.id = :id
-    """)
-    fun findByIdWithDrugs(@Param("id") id: UUID): MedKit?
+    fun save(medKit: MedKit): MedKit {
+        MedKits.upsert {
+            it[id] = medKit.id
+        }
+        return medKit
+    }
 
-    @Query("""
-        SELECT mk FROM MedKit mk
-        LEFT JOIN FETCH mk.users
-        WHERE mk.id = :id
-    """)
-    fun findByIdWithUsers(@Param("id") id: UUID): MedKit?
+    fun findById(medKitId: UUID): MedKit? {
+        return MedKits.selectAll().where { MedKits.id eq medKitId }
+            .singleOrNull()
+            ?.let { MedKit(id = it[MedKits.id]) }
+    }
 
-    @Query("""
-        SELECT mk FROM MedKit mk
-        JOIN mk.users u
-        WHERE mk.id = :id AND u.id = :userId
-    """)
-    fun findByIdAndUserId(@Param("id") id: UUID, @Param("userId") userId: UUID): MedKit?
+    fun delete(medKit: MedKit) {
+        MedKits.deleteWhere { id eq medKit.id }
+    }
 
-    @Query("""
-        SELECT mk.id, SIZE(mk.users), SIZE(mk.drugs)
-        FROM MedKit mk
-        JOIN mk.users u
-        WHERE u.id = :userId
-    """)
-    fun findMedKitSummariesByUserId(@Param("userId") userId: UUID): List<Array<Any>>
+    fun findByUsersId(userId: UUID): List<MedKit> {
+        return MedKits.innerJoin(UserMedKits, { MedKits.id }, { medKitId })
+            .select(MedKits.columns)
+            .where { UserMedKits.userId eq userId }
+            .map { MedKit(id = it[MedKits.id]) }
+    }
+
+    fun findByIdAndUserId(id: UUID, userId: UUID): MedKit? {
+        return MedKits.innerJoin(UserMedKits, { MedKits.id }, { medKitId })
+            .select(MedKits.columns)
+            .where { (MedKits.id eq id) and (UserMedKits.userId eq userId) }
+            .singleOrNull()
+            ?.let { MedKit(id = it[MedKits.id]) }
+    }
+
+    fun findMedKitSummariesByUserId(userId: UUID): List<Triple<UUID, Long, Long>> {
+        val userCount = UserMedKits.userId.count()
+        val drugCount = UserDrugs.id.count()
+
+        return MedKits
+            .innerJoin(UserMedKits, { MedKits.id }, { medKitId })
+            .leftJoin(UserDrugs, { MedKits.id }, { medKitId })
+            .select(MedKits.id, userCount, drugCount)
+            .where {
+                MedKits.id inSubQuery (
+                    UserMedKits.select(UserMedKits.medKitId)
+                        .where { UserMedKits.userId eq userId }
+                )
+            }
+            .groupBy(MedKits.id)
+            .map { row ->
+                Triple(row[MedKits.id], row[userCount], row[drugCount])
+            }
+    }
+
+    fun addUserToMedKit(userId: UUID, medKitId: UUID) {
+        UserMedKits.insertIgnore {
+            it[UserMedKits.userId] = userId
+            it[UserMedKits.medKitId] = medKitId
+        }
+    }
+
+    fun removeUserFromMedKit(userId: UUID, medKitId: UUID) {
+        UserMedKits.deleteWhere {
+            (UserMedKits.userId eq userId) and (UserMedKits.medKitId eq medKitId)
+        }
+    }
+
+    fun countUsersInMedKit(medKitId: UUID): Long {
+        return UserMedKits.selectAll()
+            .where { UserMedKits.medKitId eq medKitId }
+            .count()
+    }
 }

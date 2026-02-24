@@ -1,19 +1,16 @@
 package org.kert0n.medappserver.services
 
 import com.sksamuel.aedile.core.Cache
-import org.kert0n.medappserver.services.MedKitDrugServices
-import org.kert0n.medappserver.controller.MedKitDTO
 import org.kert0n.medappserver.db.model.MedKit
-import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.MedKitRepository
 import org.kert0n.medappserver.services.security.SecurityService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.*
 
 @Service
@@ -22,48 +19,52 @@ open class MedKitService(
     private val securityService: SecurityService,
     private val logger: Logger = LoggerFactory.getLogger(MedKitService::class.java),
     private val medKitTokenCache: Cache<String, UUID>,
-    private val userService: UserService
+    private val userService: UserService,
+    private val database: Database
 ) {
-    @Transactional
     fun createNew(userId: UUID): MedKit {
         logger.debug("Creating new medkit for user: {}", userId)
-        val user: User = userService.findById(userId)
-        val medKit = medKitRepository.save(MedKit())
-        user.medKits.add(medKit)
-        medKit.users.add(user)
-        return medKit
+        return transaction(database) {
+            userService.findById(userId)
+            val medKit = medKitRepository.save(MedKit())
+            medKitRepository.addUserToMedKit(userId, medKit.id)
+            medKit
+        }
     }
 
-    @Transactional(readOnly = true)
     fun findById(medKitId: UUID): MedKit {
         logger.debug("Finding medkit by ID: {}", medKitId)
-        return medKitRepository.findByIdOrNull(medKitId) ?: throw ResponseStatusException(
+        return transaction(database) {
+            medKitRepository.findById(medKitId)
+        } ?: throw ResponseStatusException(
             HttpStatus.NOT_FOUND,
             "MedKit not found"
         )
     }
 
-    @Transactional(readOnly = true)
     fun findByIdForUser(medKitId: UUID, userId: UUID): MedKit {
         logger.debug("Finding medkit {} for user {}", medKitId, userId)
-        return medKitRepository.findByIdAndUserId(medKitId, userId) ?: throw ResponseStatusException(
+        return transaction(database) {
+            medKitRepository.findByIdAndUserId(medKitId, userId)
+        } ?: throw ResponseStatusException(
             HttpStatus.NOT_FOUND,
             "Medkit not found or user has insufficient privileges"
         )
-
     }
 
-    @Transactional(readOnly = true)
     fun findAllByUser(userId: UUID): List<MedKit> {
         logger.debug("Finding all medkits for user: {}", userId)
-        return medKitRepository.findByUsersId(userId)
+        return transaction(database) {
+            medKitRepository.findByUsersId(userId)
+        }
     }
 
-    @Transactional(readOnly = true)
     fun findMedKitSummaries(userId: UUID): List<Triple<UUID, Int, Int>> {
         logger.debug("Finding medkit summaries for user: {}", userId)
-        return medKitRepository.findMedKitSummariesByUserId(userId).map { row ->
-            Triple(row[0] as UUID, row[1] as Int, row[2] as Int)
+        return transaction(database) {
+            medKitRepository.findMedKitSummariesByUserId(userId).map { row ->
+                Triple(row.first, row.second.toInt(), row.third.toInt())
+            }
         }
     }
 
@@ -76,20 +77,24 @@ open class MedKitService(
         return key
     }
 
-    @Transactional
     fun addUserToMedKit(medKitId: UUID, userId: UUID): MedKit {
         logger.debug("Adding user {} to medkit {}", userId, medKitId)
-        val medKit = findById(medKitId)
-        val user = userService.findById(userId)
-        if (medKit.users.contains(user)) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists")
+        return transaction(database) {
+            val medKit = medKitRepository.findById(medKitId)
+                ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "MedKit not found")
+            userService.findById(userId)
+            
+            // Check if user is already in medkit
+            val existingMedKit = medKitRepository.findByIdAndUserId(medKitId, userId)
+            if (existingMedKit != null) {
+                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists")
+            }
+            
+            medKitRepository.addUserToMedKit(userId, medKitId)
+            medKit
         }
-        medKit.users.add(user)
-        user.medKits.add(medKit)
-        return medKitRepository.save(medKit)
     }
 
-    @Transactional
     fun joinMedKitByKey(key: String, userId: UUID): MedKit {
         val hashedKey = securityService.hashToken(key)
         val medKitId = medKitTokenCache.getOrNull(hashedKey) ?: throw ResponseStatusException(
@@ -98,18 +103,20 @@ open class MedKitService(
         return addUserToMedKit(medKitId, userId)
     }
 
-    @Transactional
-    fun removeUserFromMedKit(medKit: MedKit, user: User) {
-        logger.debug("Removing user {} from medkit {}, deleteAllDrugs: {}", user.id, medKit.id)
+    fun removeUserFromMedKit(medKitId: UUID, userId: UUID) {
+        logger.debug("Removing user {} from medkit {}", userId, medKitId)
 
-        user.medKits.remove(medKit)
-        medKit.users.remove(user)
-        if (medKit.users.isEmpty()) {
-            // This user was the last
-            logger.debug("No users left in medkit {}, deleting", medKit.id)
-            medKitRepository.delete(medKit)
-        } else {
-            medKitRepository.save(medKit)
+        transaction(database) {
+            medKitRepository.removeUserFromMedKit(userId, medKitId)
+            val remainingUsers = medKitRepository.countUsersInMedKit(medKitId)
+            if (remainingUsers == 0L) {
+                // This user was the last
+                logger.debug("No users left in medkit {}, deleting", medKitId)
+                val medKit = medKitRepository.findById(medKitId)
+                if (medKit != null) {
+                    medKitRepository.delete(medKit)
+                }
+            }
         }
     }
 
@@ -117,3 +124,4 @@ open class MedKitService(
 
 
 }
+

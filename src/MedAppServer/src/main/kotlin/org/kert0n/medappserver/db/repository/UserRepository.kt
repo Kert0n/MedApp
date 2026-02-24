@@ -1,31 +1,47 @@
 package org.kert0n.medappserver.db.repository
 
+import org.jetbrains.exposed.sql.*
 import org.kert0n.medappserver.db.model.User
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
+import org.kert0n.medappserver.db.table.UserMedKits
+import org.kert0n.medappserver.db.table.Users
+import org.kert0n.medappserver.db.table.Usings
+import org.springframework.stereotype.Repository
 import java.util.*
 
-interface UserRepository: JpaRepository<User, UUID> {
+@Repository
+class UserRepository {
 
-    @Query("""
-        SELECT u FROM User u
-        JOIN u.medKits mk
-        WHERE mk.id = :medId
-    """)
-    fun findByMedKitsId(@Param("medId") medId: UUID): List<User>
-    
-    @Query("""
-        SELECT u FROM User u
-        JOIN u.usings us
-        WHERE us.drug.id = :drugId
-    """)
-    fun findByUsingsDrugId(@Param("drugId") drugId: UUID): Set<User>
+    fun save(user: User): User {
+        Users.upsert {
+            it[id] = user.id
+            it[hashedKey] = user.hashedKey
+        }
+        return user
+    }
 
-    @Query("""
-        SELECT u FROM User u
-        LEFT JOIN FETCH u.medKits
-        WHERE u.id = :id
-    """)
-    fun findByIdWithMedKits(@Param("id") id: UUID): User?
+    fun findById(id: UUID): User? {
+        return Users.selectAll().where { Users.id eq id }
+            .singleOrNull()
+            ?.toUser()
+    }
+
+    fun findByMedKitsId(medId: UUID): List<User> {
+        return Users.innerJoin(UserMedKits, { Users.id }, { userId })
+            .selectAll().where { UserMedKits.medKitId eq medId }
+            .map { it.toUser() }
+    }
+
+    fun findByUsingsDrugId(drugId: UUID): Set<User> {
+        return Users.innerJoin(Usings, { Users.id }, { userId })
+            .selectAll().where { Usings.drugId eq drugId }
+            .map { it.toUser() }
+            .toSet()
+    }
+
+    private fun ResultRow.toUser(): User {
+        return User(
+            id = this[Users.id],
+            hashedKey = this[Users.hashedKey]
+        )
+    }
 }

@@ -1,38 +1,74 @@
 package org.kert0n.medappserver.db.repository
 
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.kert0n.medappserver.db.model.Using
-import org.kert0n.medappserver.db.model.UsingKey
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
+import org.kert0n.medappserver.db.table.Usings
+import org.springframework.stereotype.Repository
 import java.util.*
 
-interface UsingRepository: JpaRepository<Using, UsingKey> {
-    
-    // JPQL for explicit queries
-    @Query("""
-        SELECT u FROM Using u
-        WHERE u.user.id = :userId
-    """)
-    fun findAllByUserId(@Param("userId") userId: UUID): List<Using>
-    
-    @Query("""
-        SELECT u FROM Using u
-        WHERE u.drug.id = :drugId
-    """)
-    fun findAllByDrugId(@Param("drugId") drugId: UUID): List<Using>
-    
-    @Query("""
-        SELECT u FROM Using u
-        WHERE u.user.id = :userId AND u.drug.id = :drugId
-    """)
-    fun findByUserIdAndDrugId(@Param("userId") userId: UUID, @Param("drugId") drugId: UUID): Using?
-    
-    // JPQL with fetch for eager loading
-    @Query("""
-        SELECT u FROM Using u
-        JOIN FETCH u.drug
-        WHERE u.user.id = :userId
-    """)
-    fun findAllByUserIdWithDrug(@Param("userId") userId: UUID): List<Using>
+@Repository
+class UsingRepository {
+
+    fun save(using: Using): Using {
+        val exists = Usings.selectAll()
+            .where { (Usings.userId eq using.userId) and (Usings.drugId eq using.drugId) }
+            .singleOrNull() != null
+
+        if (exists) {
+            Usings.update({ (Usings.userId eq using.userId) and (Usings.drugId eq using.drugId) }) {
+                it[plannedAmount] = using.plannedAmount
+                it[lastModified] = using.lastModified
+                it[createdAt] = using.createdAt
+            }
+        } else {
+            Usings.insert {
+                it[userId] = using.userId
+                it[drugId] = using.drugId
+                it[plannedAmount] = using.plannedAmount
+                it[lastModified] = using.lastModified
+                it[createdAt] = using.createdAt
+            }
+        }
+        return using
+    }
+
+    fun delete(using: Using) {
+        Usings.deleteWhere {
+            (userId eq using.userId) and (drugId eq using.drugId)
+        }
+    }
+
+    fun deleteByUserIdAndDrugId(userId: UUID, drugId: UUID) {
+        Usings.deleteWhere {
+            (Usings.userId eq userId) and (Usings.drugId eq drugId)
+        }
+    }
+
+    fun findAllByUserId(userId: UUID): List<Using> {
+        return Usings.selectAll().where { Usings.userId eq userId }
+            .map { it.toUsing() }
+    }
+
+    fun findAllByDrugId(drugId: UUID): List<Using> {
+        return Usings.selectAll().where { Usings.drugId eq drugId }
+            .map { it.toUsing() }
+    }
+
+    fun findByUserIdAndDrugId(userId: UUID, drugId: UUID): Using? {
+        return Usings.selectAll()
+            .where { (Usings.userId eq userId) and (Usings.drugId eq drugId) }
+            .singleOrNull()
+            ?.toUsing()
+    }
+
+    private fun ResultRow.toUsing(): Using {
+        return Using(
+            userId = this[Usings.userId],
+            drugId = this[Usings.drugId],
+            plannedAmount = this[Usings.plannedAmount],
+            lastModified = this[Usings.lastModified],
+            createdAt = this[Usings.createdAt]
+        )
+    }
 }
