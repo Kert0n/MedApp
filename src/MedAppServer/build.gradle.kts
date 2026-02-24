@@ -1,9 +1,9 @@
 plugins {
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
+    kotlin("plugin.jpa") version "2.2.21"
     id("org.springframework.boot") version "4.0.2"
     id("io.spring.dependency-management") version "1.1.7"
-    kotlin("plugin.jpa") version "2.2.21"
 }
 
 group = "org.kert0n"
@@ -30,6 +30,9 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server")
+    implementation("org.jetbrains.exposed:exposed-core:1.0.0-rc-2")
+    implementation("org.jetbrains.exposed:exposed-jdbc:1.0.0-rc-2")
+    implementation("org.jetbrains.exposed:exposed-java-time:1.0.0-rc-2")
     implementation("com.sksamuel.aedile:aedile-core:3.0.2")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     developmentOnly("org.springframework.boot:spring-boot-devtools")

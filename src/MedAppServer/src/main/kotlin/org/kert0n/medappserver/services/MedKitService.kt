@@ -31,7 +31,7 @@ open class MedKitService(
         val medKit = medKitRepository.save(MedKit())
         user.medKits.add(medKit)
         medKit.users.add(user)
-        return medKit
+        return medKitRepository.save(medKit)
     }
 
     @Transactional(readOnly = true)

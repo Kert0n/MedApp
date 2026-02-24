@@ -39,6 +39,7 @@ class RepositoryIntegrationTests {
         val medKit = medKitRepository.save(MedKit())
         user.medKits.add(medKit)
         medKit.users.add(user)
+        medKitRepository.save(medKit)
         entityManager.flush()
         return medKit
     }
@@ -143,6 +144,7 @@ class RepositoryIntegrationTests {
         val medKit = createMedKitForUser(user1)
         user2.medKits.add(medKit)
         medKit.users.add(user2)
+        medKitRepository.save(medKit)
         val drug = createDrug(medKit)
         entityManager.flush()
 
@@ -247,6 +249,7 @@ class RepositoryIntegrationTests {
         val medKit = createMedKitForUser(user1)
         user2.medKits.add(medKit)
         medKit.users.add(user2)
+        medKitRepository.save(medKit)
         entityManager.flush()
         entityManager.clear()
 
@@ -264,6 +267,7 @@ class RepositoryIntegrationTests {
         val medKit = createMedKitForUser(user1)
         user2.medKits.add(medKit)
         medKit.users.add(user2)
+        medKitRepository.save(medKit)
         entityManager.flush()
         entityManager.clear()
 
@@ -278,6 +282,7 @@ class RepositoryIntegrationTests {
         val medKit = createMedKitForUser(user1)
         user2.medKits.add(medKit)
         medKit.users.add(user2)
+        medKitRepository.save(medKit)
         val drug = createDrug(medKit)
         entityManager.flush()
 
@@ -335,6 +340,7 @@ class RepositoryIntegrationTests {
         val medKit = createMedKitForUser(user1)
         user2.medKits.add(medKit)
         medKit.users.add(user2)
+        medKitRepository.save(medKit)
         val drug = createDrug(medKit)
         entityManager.flush()
 
