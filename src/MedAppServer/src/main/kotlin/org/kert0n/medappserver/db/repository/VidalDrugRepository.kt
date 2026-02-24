@@ -3,8 +3,10 @@ package org.kert0n.medappserver.db.repository
 import org.kert0n.medappserver.db.model.parsed.FormType
 import org.kert0n.medappserver.db.model.parsed.QuantityUnit
 import org.kert0n.medappserver.db.model.parsed.VidalDrug
+import org.jetbrains.exposed.v1.core.IntegerColumnType
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.statements.StatementType
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.springframework.stereotype.Repository
@@ -33,29 +35,35 @@ class VidalDrugRepository {
         if (searchTerm.isBlank()) {
             return@transaction emptyList()
         }
-        val escaped = searchTerm
-            .replace("\\", "\\\\")
-            .replace("'", "''")
         val sql = """
             SELECT pd.*, ft.id AS ft_id, ft.name AS ft_name, qu.id AS qu_id, qu.name AS qu_name
             FROM parsed_drugs pd
             LEFT JOIN form_types ft ON pd.form_type_id = ft.id
             LEFT JOIN quantity_units qu ON pd.quantity_unit_id = qu.id
-            WHERE pd.name ILIKE '%$escaped%'
-               OR similarity(LOWER(pd.name), LOWER('$escaped')) > 0.3
+            WHERE pd.name ILIKE CONCAT('%', ?, '%')
+               OR similarity(LOWER(pd.name), LOWER(?)) > 0.3
             ORDER BY
                 CASE
-                    WHEN LOWER(pd.name) = LOWER('$escaped') THEN 0
-                    WHEN pd.name ILIKE '$escaped%' THEN 1
-                    WHEN pd.name ILIKE '%$escaped%' THEN 2
+                    WHEN LOWER(pd.name) = LOWER(?) THEN 0
+                    WHEN pd.name ILIKE CONCAT(?, '%') THEN 1
+                    WHEN pd.name ILIKE CONCAT('%', ?, '%') THEN 2
                     ELSE 3
                 END,
-                similarity(LOWER(pd.name), LOWER('$escaped')) DESC,
+                similarity(LOWER(pd.name), LOWER(?)) DESC,
                 pd.name
-            LIMIT $limit
+            LIMIT ?
         """.trimIndent()
         val result = mutableListOf<VidalDrug>()
-        exec(sql) { rs ->
+        val args = listOf(
+            ParsedDrugsTable.name.columnType to searchTerm,
+            ParsedDrugsTable.name.columnType to searchTerm,
+            ParsedDrugsTable.name.columnType to searchTerm,
+            ParsedDrugsTable.name.columnType to searchTerm,
+            ParsedDrugsTable.name.columnType to searchTerm,
+            ParsedDrugsTable.name.columnType to searchTerm,
+            IntegerColumnType() to limit
+        )
+        exec(sql, args, StatementType.SELECT) { rs ->
             while (rs.next()) {
                 val formTypeId = rs.getObject("ft_id", UUID::class.java)
                 val quantityUnitId = rs.getObject("qu_id", UUID::class.java)

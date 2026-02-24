@@ -54,13 +54,7 @@ class MedKitRepository {
     }
 
     fun findByIdOrNull(id: UUID): MedKit? = transaction {
-        MedKitsTable.select(MedKitsTable.columns).where { MedKitsTable.id eq id }.firstOrNull()?.let(::mapMedKit)?.also { medKit ->
-            val users = (UsersTable innerJoin UserMedKitsTable)
-                .select(UsersTable.columns)
-                .where { UserMedKitsTable.medKitId eq id }
-                .map(::mapUser)
-            medKit.users.addAll(users)
-        }
+        MedKitsTable.select(MedKitsTable.columns).where { MedKitsTable.id eq id }.firstOrNull()?.let(::mapMedKit)?.also(::loadUsers)
     }
 
     fun findByUsersId(userId: UUID): List<MedKit> = transaction {
@@ -78,13 +72,7 @@ class MedKitRepository {
     }
 
     fun findByIdWithUsers(id: UUID): MedKit? = transaction {
-        findByIdOrNull(id)?.also { medKit ->
-            val users = (UsersTable innerJoin UserMedKitsTable)
-                .select(UsersTable.columns)
-                .where { UserMedKitsTable.medKitId eq id }
-                .map(::mapUser)
-            medKit.users.addAll(users)
-        }
+        findByIdOrNull(id)
     }
 
     fun findByIdAndUserId(id: UUID, userId: UUID): MedKit? = transaction {
@@ -129,4 +117,13 @@ class MedKitRepository {
         description = row[DrugsTable.description],
         medKit = MedKit(id = row[DrugsTable.medKitId])
     )
+
+    private fun loadUsers(medKit: MedKit): MedKit {
+        val users = (UsersTable innerJoin UserMedKitsTable)
+            .select(UsersTable.columns)
+            .where { UserMedKitsTable.medKitId eq medKit.id }
+            .map(::mapUser)
+        medKit.users.addAll(users)
+        return medKit
+    }
 }

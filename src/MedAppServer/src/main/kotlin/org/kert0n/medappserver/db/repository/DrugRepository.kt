@@ -10,6 +10,7 @@ import org.kert0n.medappserver.db.model.User
 import org.jetbrains.exposed.v1.core.AndOp
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.sum
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.springframework.stereotype.Repository
@@ -48,10 +49,24 @@ class DrugRepository {
             }
         }
         drug.usings.forEach { using ->
-            UsingsTable.update({ AndOp(listOf(UsingsTable.userId eq using.user.id, UsingsTable.drugId eq using.drug.id)) }) {
-                it[plannedAmount] = using.plannedAmount
-                it[lastModified] = using.lastModified
-                it[createdAt] = using.createdAt
+            val usingExists = UsingsTable
+                .select(UsingsTable.userId)
+                .where { AndOp(listOf(UsingsTable.userId eq using.user.id, UsingsTable.drugId eq using.drug.id)) }
+                .firstOrNull() != null
+            if (usingExists) {
+                UsingsTable.update({ AndOp(listOf(UsingsTable.userId eq using.user.id, UsingsTable.drugId eq using.drug.id)) }) {
+                    it[plannedAmount] = using.plannedAmount
+                    it[lastModified] = using.lastModified
+                    it[createdAt] = using.createdAt
+                }
+            } else {
+                UsingsTable.insert {
+                    it[userId] = using.user.id
+                    it[drugId] = using.drug.id
+                    it[plannedAmount] = using.plannedAmount
+                    it[lastModified] = using.lastModified
+                    it[createdAt] = using.createdAt
+                }
             }
         }
         drug
@@ -108,7 +123,13 @@ class DrugRepository {
     }
 
     fun sumPlannedAmount(drugId: UUID): Double = transaction {
-        UsingsTable.select(UsingsTable.plannedAmount).where { UsingsTable.drugId eq drugId }.sumOf { it[UsingsTable.plannedAmount] }
+        val plannedSum = UsingsTable.plannedAmount.sum()
+        UsingsTable
+            .select(plannedSum)
+            .where { UsingsTable.drugId eq drugId }
+            .firstOrNull()
+            ?.get(plannedSum)
+            ?: 0.0
     }
 
     private fun mapDrug(row: ResultRow): Drug = Drug(
