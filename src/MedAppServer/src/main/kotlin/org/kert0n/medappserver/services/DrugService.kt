@@ -64,7 +64,6 @@ class DrugService(
             description = createDTO.description,
             medKit = medKit
         )
-        
         return drugRepository.save(drug)
     }
 

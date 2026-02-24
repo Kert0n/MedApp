@@ -63,7 +63,7 @@ class MedKitDrugServices(
 
     @Transactional(readOnly = true)
     fun toMedKitDTO(medKit: MedKit): MedKitDTO {
-        val drugs = if (medKit.drugs.isNotEmpty()) medKit.drugs else drugService.findAllByMedKit(medKit.id)
+        val drugs = drugService.findAllByMedKit(medKit.id)
         return MedKitDTO(
             id = medKit.id,
             drugs = (drugs.map { drugService.toDrugDTO(it) }).toSet()
