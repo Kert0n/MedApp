@@ -50,8 +50,9 @@ class VidalDrugRepository {
         ParsedDrugs.deleteAll()
     }
 
-    // Native PostgreSQL fuzzy search using pg_trgm trigram similarity + ILIKE
-    // Similarity threshold 0.3 is the pg_trgm default for the % operator
+    // Native PostgreSQL fuzzy search using pg_trgm trigram similarity + ILIKE.
+    // This uses raw JDBC because the pg_trgm similarity() function and the complex
+    // ORDER BY with CASE expressions cannot be expressed in Exposed's DSL.
     fun fuzzySearchByName(searchTerm: String, limit: Int = 10): List<VidalDrug> {
         val sql = """
             SELECT pd.*, ft.id as ft_id, ft.name as ft_name, qu.id as qu_id, qu.name as qu_name

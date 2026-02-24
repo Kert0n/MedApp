@@ -13,7 +13,7 @@ class UsingRepository {
     fun save(using: Using): Using {
         val exists = Usings.selectAll()
             .where { (Usings.userId eq using.userId) and (Usings.drugId eq using.drugId) }
-            .singleOrNull() != null
+            .count() > 0
 
         if (exists) {
             Usings.update({ (Usings.userId eq using.userId) and (Usings.drugId eq using.drugId) }) {
