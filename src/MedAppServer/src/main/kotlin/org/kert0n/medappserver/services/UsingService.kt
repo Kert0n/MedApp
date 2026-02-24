@@ -27,7 +27,7 @@ class UsingService(
     @Transactional(readOnly = true)
     fun findAllByUser(userId: UUID): List<Using> {
         logger.debug("Finding all usings for user: {}", userId)
-        return usingRepository.findAllByUserId(userId)
+        return usingRepository.findAllByUserIdWithDrug(userId)
     }
 
     @Transactional(readOnly = true)

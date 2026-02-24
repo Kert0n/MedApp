@@ -9,8 +9,9 @@ import java.util.*
 interface MedKitRepository: JpaRepository<MedKit, UUID> {
     
     @Query("""
-        SELECT mk FROM MedKit mk
+        SELECT DISTINCT mk FROM MedKit mk
         JOIN mk.users u
+        LEFT JOIN FETCH mk.drugs
         WHERE u.id = :userId
     """)
     fun findByUsersId(@Param("userId") userId: UUID): List<MedKit>

@@ -326,6 +326,26 @@ class ServiceIntegrationTests() {
         assertEquals(2, dto.drugs.size)
     }
 
+    @Test
+    fun `MedKitService - findAllByUser returns distinct medkits with multiple drugs`() {
+        val user = createUser()
+        val medKit = medKitService.createNew(user.id)
+        drugService.create(
+            DrugCreateDTO(name = "Drug A", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            user.id
+        )
+        drugService.create(
+            DrugCreateDTO(name = "Drug B", quantity = 30.0, quantityUnit = "tablets", medKitId = medKit.id), medKit,
+            user.id
+        )
+        entityManager.flush()
+        entityManager.clear()
+
+        val medKits = medKitService.findAllByUser(user.id)
+        assertEquals(1, medKits.size)
+        assertEquals(medKit.id, medKits.single().id)
+    }
+
     // === UsingService Tests ===
 
     @Test
