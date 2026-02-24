@@ -51,18 +51,9 @@ class UsingsControllerTest {
     }
 
     private fun createTestUsing(): Using {
-        val user = User(id = userId, hashedKey = "key")
-        val medKit = MedKit(id = UUID.randomUUID())
-        val drug = Drug(
-            id = drugId, name = "Drug", quantity = 100.0,
-            quantityUnit = "mg", formType = null, category = null,
-            manufacturer = null, country = null, description = null,
-            medKit = medKit
-        )
         return Using(
-            usingKey = UsingKey(userId, drugId),
-            user = user,
-            drug = drug,
+            userId = userId,
+            drugId = drugId,
             plannedAmount = 30.0,
             createdAt = now,
             lastModified = now

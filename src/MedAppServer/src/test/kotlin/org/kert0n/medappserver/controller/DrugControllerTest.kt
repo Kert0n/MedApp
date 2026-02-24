@@ -75,7 +75,7 @@ class DrugControllerTest {
         manufacturer = "Bayer",
         country = "Germany",
         description = "Pain relief",
-        medKit = createTestMedKit()
+        medKitId = medKitId
     )
 
     private fun createTestDrugDTO(): DrugDTO = DrugDTO(

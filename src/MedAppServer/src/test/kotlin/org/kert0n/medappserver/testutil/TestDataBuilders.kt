@@ -12,39 +12,26 @@ import java.util.*
 class UserBuilder {
     private var id: UUID = UUID.randomUUID()
     private var hashedKey: String = "hashed_test_key_123"
-    private val medKits: MutableSet<MedKit> = mutableSetOf()
-    private val usings: MutableSet<Using> = mutableSetOf()
 
     fun withId(id: UUID) = apply { this.id = id }
     fun withHashedKey(key: String) = apply { this.hashedKey = key }
-    fun withMedKit(medKit: MedKit) = apply { this.medKits.add(medKit) }
     
     fun build(): User {
-        val user = User(id = id, hashedKey = hashedKey)
-        user.medKits.addAll(medKits)
-        user.usings.addAll(usings)
-        return user
+        return User(id = id, hashedKey = hashedKey)
     }
 }
 
 class MedKitBuilder {
     private var id: UUID = UUID.randomUUID()
-    private val users: MutableSet<User> = mutableSetOf()
-    private val drugs: MutableSet<Drug> = mutableSetOf()
 
     fun withId(id: UUID) = apply { this.id = id }
-    fun withUser(user: User) = apply { this.users.add(user) }
-    fun withDrug(drug: Drug) = apply { this.drugs.add(drug) }
     
     fun build(): MedKit {
-        val medKit = MedKit(id = id)
-        medKit.users.addAll(users)
-        medKit.drugs.addAll(drugs)
-        return medKit
+        return MedKit(id = id)
     }
 }
 
-class DrugBuilder(private val medKit: MedKit) {
+class DrugBuilder(private val medKitId: UUID) {
     private var id: UUID = UUID.randomUUID()
     private var name: String = "Test Drug"
     private var quantity: Double = 100.0
@@ -76,21 +63,20 @@ class DrugBuilder(private val medKit: MedKit) {
             manufacturer = manufacturer,
             country = country,
             description = description,
-            medKit = medKit
+            medKitId = medKitId
         )
     }
 }
 
-class UsingBuilder(private val user: User, private val drug: Drug) {
+class UsingBuilder(private val userId: UUID, private val drugId: UUID) {
     private var plannedAmount: Double = 30.0
 
     fun withPlannedAmount(amount: Double) = apply { this.plannedAmount = amount }
     
     fun build(): Using {
         return Using(
-            usingKey = UsingKey(userId = user.id, drugId = drug.id),
-            user = user,
-            drug = drug,
+            userId = userId,
+            drugId = drugId,
             plannedAmount = plannedAmount
         )
     }
@@ -168,7 +154,7 @@ class DrugUpdateDTOBuilder {
 // Helper functions for quick access
 fun userBuilder() = UserBuilder()
 fun medKitBuilder() = MedKitBuilder()
-fun drugBuilder(medKit: MedKit) = DrugBuilder(medKit)
-fun usingBuilder(user: User, drug: Drug) = UsingBuilder(user, drug)
+fun drugBuilder(medKitId: UUID) = DrugBuilder(medKitId)
+fun usingBuilder(userId: UUID, drugId: UUID) = UsingBuilder(userId, drugId)
 fun drugCreateDTOBuilder() = DrugCreateDTOBuilder()
 fun drugUpdateDTOBuilder() = DrugUpdateDTOBuilder()

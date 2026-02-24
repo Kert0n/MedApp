@@ -1,20 +1,22 @@
 package org.kert0n.medappserver.integration
 
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.deleteAll
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.controller.DrugCreateDTO
 import org.kert0n.medappserver.controller.UsingCreateDTO
-import org.kert0n.medappserver.db.model.*
+import org.kert0n.medappserver.db.table.*
 import org.kert0n.medappserver.services.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
 @SpringBootTest
-@ActiveProfiles("test")  // Use H2 database for integration tests
-@Transactional
+@ActiveProfiles("test")
 class MedAppIntegrationTest {
 
     @Autowired
@@ -29,6 +31,20 @@ class MedAppIntegrationTest {
     @Autowired
     private lateinit var usingService: UsingService
 
+    @Autowired
+    private lateinit var db: Database
+
+    @BeforeEach
+    fun cleanup() {
+        transaction(db) {
+            Usings.deleteAll()
+            UserDrugs.deleteAll()
+            UserMedKits.deleteAll()
+            MedKits.deleteAll()
+            Users.deleteAll()
+        }
+    }
+
     @Test
     fun `complete workflow - create user, medkit, drug, and treatment plan`() {
         // 1. Create user
@@ -38,7 +54,8 @@ class MedAppIntegrationTest {
         // 2. Create medkit
         val medKit = medKitService.createNew(user.id)
         assertNotNull(medKit.id)
-        assertTrue(medKit.users.contains(user))
+        val userMedKits = medKitService.findAllByUser(user.id)
+        assertTrue(userMedKits.any { it.id == medKit.id })
 
         // 3. Create drug
         val drugDTO = DrugCreateDTO(
@@ -47,7 +64,7 @@ class MedAppIntegrationTest {
             quantityUnit = "mg",
             medKitId = medKit.id
         )
-        val drug = drugService.create(drugDTO, medKit,user.id)
+        val drug = drugService.create(drugDTO, medKit.id, user.id)
         assertNotNull(drug.id)
         assertEquals("Aspirin", drug.name)
         assertEquals(100.0, drug.quantity)
@@ -99,7 +116,8 @@ class MedAppIntegrationTest {
                 quantity = 50.0,
                 quantityUnit = "mg",
                 medKitId = medKit.id
-            ),medKit,
+            ),
+            medKit.id,
             user.id
         )
 

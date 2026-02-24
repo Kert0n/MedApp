@@ -1,6 +1,9 @@
 package org.kert0n.medappserver.integration
 
-import jakarta.persistence.EntityManager
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.deleteAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.services.MedKitDrugServices
 import org.kert0n.medappserver.controller.DrugCreateDTO
@@ -9,13 +12,13 @@ import org.kert0n.medappserver.controller.UsingCreateDTO
 import org.kert0n.medappserver.controller.UsingUpdateDTO
 import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.UserRepository
+import org.kert0n.medappserver.db.table.*
 import org.kert0n.medappserver.services.DrugService
 import org.kert0n.medappserver.services.MedKitService
 import org.kert0n.medappserver.services.UsingService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.util.*
 import kotlin.test.assertEquals
@@ -25,7 +28,6 @@ import kotlin.test.assertTrue
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional
 class ServiceIntegrationTests() {
 
     @Autowired
@@ -43,10 +45,23 @@ class ServiceIntegrationTests() {
     private lateinit var usingService: UsingService
 
     @Autowired
-    private lateinit var entityManager: EntityManager
+    private lateinit var db: Database
+
+    @BeforeEach
+    fun cleanup() {
+        transaction(db) {
+            Usings.deleteAll()
+            UserDrugs.deleteAll()
+            UserMedKits.deleteAll()
+            MedKits.deleteAll()
+            Users.deleteAll()
+        }
+    }
 
     private fun createUser(): User {
-        return userRepository.save(User(id = UUID.randomUUID(), hashedKey = "key_${UUID.randomUUID()}"))
+        return transaction(db) {
+            userRepository.save(User(id = UUID.randomUUID(), hashedKey = "key_${UUID.randomUUID()}"))
+        }
     }
 
     // === DrugService Tests ===
@@ -55,7 +70,6 @@ class ServiceIntegrationTests() {
     fun `DrugService - create drug in user medkit`() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
-        entityManager.flush()
 
         val drug = drugService.create(
             DrugCreateDTO(
@@ -64,14 +78,14 @@ class ServiceIntegrationTests() {
                 quantityUnit = "mg",
                 medKitId = medKit.id
             ),
-            medKit,
+            medKit.id,
             user.id
         )
 
         assertNotNull(drug.id)
         assertEquals("Aspirin", drug.name)
         assertEquals(100.0, drug.quantity)
-        assertEquals(medKit.id, drug.medKit.id)
+        assertEquals(medKit.id, drug.medKitId)
     }
 
     @Test
@@ -79,7 +93,6 @@ class ServiceIntegrationTests() {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = medKitService.createNew(user1.id)
-        entityManager.flush()
 
         assertFailsWith<ResponseStatusException> {
             medKitDrugServices.createDrugInMedkit(
@@ -100,10 +113,9 @@ class ServiceIntegrationTests() {
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
             DrugCreateDTO(name = "Old Name", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id),
-            medKit,
+            medKit.id,
             user.id
         )
-        entityManager.flush()
 
         val updated = drugService.update(
             drug.id,
@@ -120,10 +132,10 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
-        entityManager.flush()
 
         val consumed = drugService.consumeDrug(drug.id, 30.0, user.id)
         assertEquals(70.0, consumed.quantity)
@@ -134,10 +146,10 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 10.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 10.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
-        entityManager.flush()
 
         assertFailsWith<ResponseStatusException> {
             drugService.consumeDrug(drug.id, 20.0, user.id)
@@ -150,13 +162,13 @@ class ServiceIntegrationTests() {
         val medKit1 = medKitService.createNew(user.id)
         val medKit2 = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 50.0, quantityUnit = "mg", medKitId = medKit1.id), medKit1,
+            DrugCreateDTO(name = "Drug", quantity = 50.0, quantityUnit = "mg", medKitId = medKit1.id),
+            medKit1.id,
             user.id
         )
-        entityManager.flush()
 
-        val moved = drugService.moveDrug(drug.id, medKit2, user.id)
-        assertEquals(medKit2.id, moved.medKit.id)
+        val moved = drugService.moveDrug(drug.id, medKit2.id, user.id)
+        assertEquals(medKit2.id, moved.medKitId)
     }
 
     @Test
@@ -164,13 +176,12 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
-        entityManager.flush()
 
         drugService.delete(drug.id, user.id)
-        entityManager.flush()
 
         assertFailsWith<ResponseStatusException> {
             drugService.findById(drug.id)
@@ -182,17 +193,16 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
-        entityManager.flush()
 
         // No treatment plans yet
         assertEquals(0.0, drugService.getPlannedQuantity(drug.id))
 
         // Create treatment plan
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
-        entityManager.flush()
 
         assertEquals(30.0, drugService.getPlannedQuantity(drug.id))
     }
@@ -202,11 +212,11 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 25.0))
-        entityManager.flush()
 
         val dto = drugService.toDrugDTO(drug)
         assertEquals(25.0, dto.plannedQuantity)
@@ -219,10 +229,10 @@ class ServiceIntegrationTests() {
     fun `MedKitService - createNew creates medkit with user`() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
-        entityManager.flush()
 
         assertNotNull(medKit.id)
-        assertTrue(medKit.users.any { it.id == user.id })
+        val userMedKits = medKitService.findAllByUser(user.id)
+        assertTrue(userMedKits.any { it.id == medKit.id })
     }
 
     @Test
@@ -230,11 +240,8 @@ class ServiceIntegrationTests() {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = medKitService.createNew(user1.id)
-        entityManager.flush()
 
         medKitService.addUserToMedKit(medKit.id, user2.id)
-        entityManager.flush()
-        entityManager.clear()
 
         val medKits1 = medKitService.findAllByUser(user1.id)
         val medKits2 = medKitService.findAllByUser(user2.id)
@@ -248,12 +255,9 @@ class ServiceIntegrationTests() {
         val owner = createUser()
         val joiner = createUser()
         val medKit = medKitService.createNew(owner.id)
-        entityManager.flush()
 
         val shareKey = medKitService.generateMedKitShareKey(medKit.id, owner.id)
         medKitService.joinMedKitByKey(shareKey, joiner.id)
-        entityManager.flush()
-        entityManager.clear()
 
         val joinerMedKits = medKitService.findAllByUser(joiner.id)
         assertEquals(1, joinerMedKits.size)
@@ -278,7 +282,6 @@ class ServiceIntegrationTests() {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = medKitService.createNew(user1.id)
-        entityManager.flush()
 
         assertFailsWith<ResponseStatusException> {
             medKitService.findByIdForUser(medKit.id, user2.id)
@@ -291,11 +294,8 @@ class ServiceIntegrationTests() {
         val user2 = createUser()
         val medKit = medKitService.createNew(user1.id)
         medKitService.addUserToMedKit(medKit.id, user2.id)
-        entityManager.flush()
 
         medKitDrugServices.removeUserFromMedKit(medKit.id, user2.id)
-        entityManager.flush()
-        entityManager.clear()
 
         // medKit should still exist with user1
         val found = medKitService.findByIdForUser(medKit.id, user1.id)
@@ -312,14 +312,15 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         drugService.create(
-            DrugCreateDTO(name = "Drug A", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug A", quantity = 50.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
         drugService.create(
-            DrugCreateDTO(name = "Drug B", quantity = 30.0, quantityUnit = "tablets", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug B", quantity = 30.0, quantityUnit = "tablets", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
-        entityManager.flush()
 
         val dto = medKitDrugServices.toMedKitDTO(medKit)
         assertEquals(medKit.id, dto.id)
@@ -333,15 +334,15 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
-        entityManager.flush()
 
         val using = usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
         assertEquals(30.0, using.plannedAmount)
-        assertEquals(user.id, using.user.id)
-        assertEquals(drug.id, using.drug.id)
+        assertEquals(user.id, using.userId)
+        assertEquals(drug.id, using.drugId)
     }
 
     @Test
@@ -349,13 +350,12 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
-        entityManager.flush()
 
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
-        entityManager.flush()
 
         assertFailsWith<ResponseStatusException> {
             usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 20.0))
@@ -367,11 +367,11 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
-        entityManager.flush()
 
         val updated = usingService.updateTreatmentPlan(user.id, drug.id, UsingUpdateDTO(50.0))
         assertEquals(50.0, updated.plannedAmount)
@@ -382,11 +382,11 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
-        entityManager.flush()
 
         val updatedUsing = usingService.recordIntake(user.id, drug.id, 10.0)
         assertNotNull(updatedUsing, "recordIntake should return a non-null Using when planned amount remains")
@@ -401,14 +401,13 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
-        entityManager.flush()
 
         usingService.deleteTreatmentPlan(user.id, drug.id)
-        entityManager.flush()
 
         assertFailsWith<ResponseStatusException> {
             usingService.findByUserAndDrug(user.id, drug.id)
@@ -420,11 +419,11 @@ class ServiceIntegrationTests() {
         val user = createUser()
         val medKit = medKitService.createNew(user.id)
         val drug = drugService.create(
-            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id), medKit,
+            DrugCreateDTO(name = "Drug", quantity = 100.0, quantityUnit = "mg", medKitId = medKit.id),
+            medKit.id,
             user.id
         )
         val using = usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
-        entityManager.flush()
 
         val dto = usingService.toUsingDTO(using)
         assertEquals(user.id, dto.userId)

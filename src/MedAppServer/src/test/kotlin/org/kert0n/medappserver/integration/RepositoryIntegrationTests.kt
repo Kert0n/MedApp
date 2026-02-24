@@ -1,19 +1,22 @@
 package org.kert0n.medappserver.integration
 
-import jakarta.persistence.EntityManager
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.deleteAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.db.model.*
 import org.kert0n.medappserver.db.repository.*
+import org.kert0n.medappserver.db.table.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.transaction.annotation.Transactional
 import java.util.*
 import kotlin.test.*
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional
 class RepositoryIntegrationTests {
 
     @Autowired
@@ -29,34 +32,49 @@ class RepositoryIntegrationTests {
     private lateinit var usingRepository: UsingRepository
 
     @Autowired
-    private lateinit var entityManager: EntityManager
+    private lateinit var db: Database
+
+    @BeforeEach
+    fun cleanup() {
+        transaction(db) {
+            Usings.deleteAll()
+            UserDrugs.deleteAll()
+            UserMedKits.deleteAll()
+            MedKits.deleteAll()
+            Users.deleteAll()
+        }
+    }
 
     private fun createUser(key: String = "key_${UUID.randomUUID()}"): User {
-        return userRepository.save(User(id = UUID.randomUUID(), hashedKey = key))
+        return transaction(db) {
+            userRepository.save(User(id = UUID.randomUUID(), hashedKey = key))
+        }
     }
 
     private fun createMedKitForUser(user: User): MedKit {
-        val medKit = medKitRepository.save(MedKit())
-        user.medKits.add(medKit)
-        medKit.users.add(user)
-        entityManager.flush()
-        return medKit
+        return transaction(db) {
+            val medKit = medKitRepository.save(MedKit())
+            medKitRepository.addUserToMedKit(user.id, medKit.id)
+            medKit
+        }
     }
 
     private fun createDrug(medKit: MedKit, name: String = "Drug", quantity: Double = 100.0): Drug {
-        return drugRepository.save(
-            Drug(
-                name = name,
-                quantity = quantity,
-                quantityUnit = "tablets",
-                formType = null,
-                category = null,
-                manufacturer = null,
-                country = null,
-                description = null,
-                medKit = medKit
+        return transaction(db) {
+            drugRepository.save(
+                Drug(
+                    name = name,
+                    quantity = quantity,
+                    quantityUnit = "tablets",
+                    formType = null,
+                    category = null,
+                    manufacturer = null,
+                    country = null,
+                    description = null,
+                    medKitId = medKit.id
+                )
             )
-        )
+        }
     }
 
     // === DrugRepository Tests ===
@@ -65,12 +83,10 @@ class RepositoryIntegrationTests {
     fun `DrugRepository - findAllByMedKitId returns drugs in medkit`() {
         val user = createUser()
         val medKit = createMedKitForUser(user)
-        val drug1 = createDrug(medKit, "Drug A")
-        val drug2 = createDrug(medKit, "Drug B")
-        entityManager.flush()
-        entityManager.clear()
+        createDrug(medKit, "Drug A")
+        createDrug(medKit, "Drug B")
 
-        val drugs = drugRepository.findAllByMedKitId(medKit.id)
+        val drugs = transaction(db) { drugRepository.findAllByMedKitId(medKit.id) }
         assertEquals(2, drugs.size)
         assertTrue(drugs.any { it.name == "Drug A" })
         assertTrue(drugs.any { it.name == "Drug B" })
@@ -80,9 +96,8 @@ class RepositoryIntegrationTests {
     fun `DrugRepository - findAllByMedKitId returns empty list for empty medkit`() {
         val user = createUser()
         val medKit = createMedKitForUser(user)
-        entityManager.flush()
 
-        val drugs = drugRepository.findAllByMedKitId(medKit.id)
+        val drugs = transaction(db) { drugRepository.findAllByMedKitId(medKit.id) }
         assertTrue(drugs.isEmpty())
     }
 
@@ -91,10 +106,8 @@ class RepositoryIntegrationTests {
         val user = createUser()
         val medKit = createMedKitForUser(user)
         val drug = createDrug(medKit)
-        entityManager.flush()
-        entityManager.clear()
 
-        val found = drugRepository.findByIdAndMedKitUsersId(drug.id, user.id)
+        val found = transaction(db) { drugRepository.findByIdAndMedKitUsersId(drug.id, user.id) }
         assertNotNull(found)
         assertEquals(drug.id, found.id)
     }
@@ -105,10 +118,8 @@ class RepositoryIntegrationTests {
         val user2 = createUser()
         val medKit = createMedKitForUser(user1)
         val drug = createDrug(medKit)
-        entityManager.flush()
-        entityManager.clear()
 
-        val found = drugRepository.findByIdAndMedKitUsersId(drug.id, user2.id)
+        val found = transaction(db) { drugRepository.findByIdAndMedKitUsersId(drug.id, user2.id) }
         assertNull(found)
     }
 
@@ -117,21 +128,13 @@ class RepositoryIntegrationTests {
         val user = createUser()
         val medKit = createMedKitForUser(user)
         val drug1 = createDrug(medKit, "Drug A")
-        val drug2 = createDrug(medKit, "Drug B")
-        entityManager.flush()
+        createDrug(medKit, "Drug B")
 
-        // Create using for drug1 only
-        val using = Using(
-            usingKey = UsingKey(user.id, drug1.id),
-            user = user,
-            drug = drug1,
-            plannedAmount = 10.0
-        )
-        usingRepository.save(using)
-        entityManager.flush()
-        entityManager.clear()
+        transaction(db) {
+            usingRepository.save(Using(userId = user.id, drugId = drug1.id, plannedAmount = 10.0))
+        }
 
-        val drugs = drugRepository.findByUsingsUserId(user.id)
+        val drugs = transaction(db) { drugRepository.findByUsingsUserId(user.id) }
         assertEquals(1, drugs.size)
         assertEquals(drug1.id, drugs[0].id)
     }
@@ -141,29 +144,15 @@ class RepositoryIntegrationTests {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = createMedKitForUser(user1)
-        user2.medKits.add(medKit)
-        medKit.users.add(user2)
+        transaction(db) { medKitRepository.addUserToMedKit(user2.id, medKit.id) }
         val drug = createDrug(medKit)
-        entityManager.flush()
 
-        val using1 = Using(
-            usingKey = UsingKey(user1.id, drug.id),
-            user = user1,
-            drug = drug,
-            plannedAmount = 20.0
-        )
-        val using2 = Using(
-            usingKey = UsingKey(user2.id, drug.id),
-            user = user2,
-            drug = drug,
-            plannedAmount = 30.0
-        )
-        usingRepository.save(using1)
-        usingRepository.save(using2)
-        entityManager.flush()
-        entityManager.clear()
+        transaction(db) {
+            usingRepository.save(Using(userId = user1.id, drugId = drug.id, plannedAmount = 20.0))
+            usingRepository.save(Using(userId = user2.id, drugId = drug.id, plannedAmount = 30.0))
+        }
 
-        val sum = drugRepository.sumPlannedAmount(drug.id)
+        val sum = transaction(db) { drugRepository.sumPlannedAmount(drug.id) }
         assertEquals(50.0, sum)
     }
 
@@ -172,10 +161,8 @@ class RepositoryIntegrationTests {
         val user = createUser()
         val medKit = createMedKitForUser(user)
         val drug = createDrug(medKit)
-        entityManager.flush()
-        entityManager.clear()
 
-        val sum = drugRepository.sumPlannedAmount(drug.id)
+        val sum = transaction(db) { drugRepository.sumPlannedAmount(drug.id) }
         assertEquals(0.0, sum)
     }
 
@@ -184,21 +171,18 @@ class RepositoryIntegrationTests {
     @Test
     fun `MedKitRepository - findByUsersId returns medkits for user`() {
         val user = createUser()
-        val medKit1 = createMedKitForUser(user)
-        val medKit2 = createMedKitForUser(user)
-        entityManager.flush()
-        entityManager.clear()
+        createMedKitForUser(user)
+        createMedKitForUser(user)
 
-        val medKits = medKitRepository.findByUsersId(user.id)
+        val medKits = transaction(db) { medKitRepository.findByUsersId(user.id) }
         assertEquals(2, medKits.size)
     }
 
     @Test
     fun `MedKitRepository - findByUsersId returns empty for user with no medkits`() {
         val user = createUser()
-        entityManager.flush()
 
-        val medKits = medKitRepository.findByUsersId(user.id)
+        val medKits = transaction(db) { medKitRepository.findByUsersId(user.id) }
         assertTrue(medKits.isEmpty())
     }
 
@@ -206,10 +190,8 @@ class RepositoryIntegrationTests {
     fun `MedKitRepository - findByIdAndUserId returns medkit for authorized user`() {
         val user = createUser()
         val medKit = createMedKitForUser(user)
-        entityManager.flush()
-        entityManager.clear()
 
-        val found = medKitRepository.findByIdAndUserId(medKit.id, user.id)
+        val found = transaction(db) { medKitRepository.findByIdAndUserId(medKit.id, user.id) }
         assertNotNull(found)
         assertEquals(medKit.id, found.id)
     }
@@ -219,40 +201,20 @@ class RepositoryIntegrationTests {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = createMedKitForUser(user1)
-        entityManager.flush()
-        entityManager.clear()
 
-        val found = medKitRepository.findByIdAndUserId(medKit.id, user2.id)
+        val found = transaction(db) { medKitRepository.findByIdAndUserId(medKit.id, user2.id) }
         assertNull(found)
     }
 
     @Test
-    fun `MedKitRepository - findByIdWithDrugs eagerly loads drugs`() {
-        val user = createUser()
-        val medKit = createMedKitForUser(user)
-        createDrug(medKit, "Drug A")
-        createDrug(medKit, "Drug B")
-        entityManager.flush()
-        entityManager.clear()
-
-        val found = medKitRepository.findByIdWithDrugs(medKit.id)
-        assertNotNull(found)
-        assertEquals(2, found.drugs.size)
-    }
-
-    @Test
-    fun `MedKitRepository - findByIdWithUsers eagerly loads users`() {
+    fun `MedKitRepository - countUsersInMedKit returns correct count`() {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = createMedKitForUser(user1)
-        user2.medKits.add(medKit)
-        medKit.users.add(user2)
-        entityManager.flush()
-        entityManager.clear()
+        transaction(db) { medKitRepository.addUserToMedKit(user2.id, medKit.id) }
 
-        val found = medKitRepository.findByIdWithUsers(medKit.id)
-        assertNotNull(found)
-        assertEquals(2, found.users.size)
+        val count = transaction(db) { medKitRepository.countUsersInMedKit(medKit.id) }
+        assertEquals(2L, count)
     }
 
     // === UserRepository Tests ===
@@ -262,12 +224,9 @@ class RepositoryIntegrationTests {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = createMedKitForUser(user1)
-        user2.medKits.add(medKit)
-        medKit.users.add(user2)
-        entityManager.flush()
-        entityManager.clear()
+        transaction(db) { medKitRepository.addUserToMedKit(user2.id, medKit.id) }
 
-        val users = userRepository.findByMedKitsId(medKit.id)
+        val users = transaction(db) { userRepository.findByMedKitsId(medKit.id) }
         assertEquals(2, users.size)
     }
 
@@ -276,37 +235,16 @@ class RepositoryIntegrationTests {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = createMedKitForUser(user1)
-        user2.medKits.add(medKit)
-        medKit.users.add(user2)
+        transaction(db) { medKitRepository.addUserToMedKit(user2.id, medKit.id) }
         val drug = createDrug(medKit)
-        entityManager.flush()
 
-        val using = Using(
-            usingKey = UsingKey(user1.id, drug.id),
-            user = user1,
-            drug = drug,
-            plannedAmount = 10.0
-        )
-        usingRepository.save(using)
-        entityManager.flush()
-        entityManager.clear()
+        transaction(db) {
+            usingRepository.save(Using(userId = user1.id, drugId = drug.id, plannedAmount = 10.0))
+        }
 
-        val users = userRepository.findByUsingsDrugId(drug.id)
+        val users = transaction(db) { userRepository.findByUsingsDrugId(drug.id) }
         assertEquals(1, users.size)
         assertTrue(users.any { it.id == user1.id })
-    }
-
-    @Test
-    fun `UserRepository - findByIdWithMedKits eagerly loads medkits`() {
-        val user = createUser()
-        createMedKitForUser(user)
-        createMedKitForUser(user)
-        entityManager.flush()
-        entityManager.clear()
-
-        val found = userRepository.findByIdWithMedKits(user.id)
-        assertNotNull(found)
-        assertEquals(2, found.medKits.size)
     }
 
     // === UsingRepository Tests ===
@@ -317,14 +255,13 @@ class RepositoryIntegrationTests {
         val medKit = createMedKitForUser(user)
         val drug1 = createDrug(medKit, "Drug A")
         val drug2 = createDrug(medKit, "Drug B")
-        entityManager.flush()
 
-        usingRepository.save(Using(UsingKey(user.id, drug1.id), user, drug1, 10.0))
-        usingRepository.save(Using(UsingKey(user.id, drug2.id), user, drug2, 20.0))
-        entityManager.flush()
-        entityManager.clear()
+        transaction(db) {
+            usingRepository.save(Using(userId = user.id, drugId = drug1.id, plannedAmount = 10.0))
+            usingRepository.save(Using(userId = user.id, drugId = drug2.id, plannedAmount = 20.0))
+        }
 
-        val usings = usingRepository.findAllByUserId(user.id)
+        val usings = transaction(db) { usingRepository.findAllByUserId(user.id) }
         assertEquals(2, usings.size)
     }
 
@@ -333,17 +270,15 @@ class RepositoryIntegrationTests {
         val user1 = createUser()
         val user2 = createUser()
         val medKit = createMedKitForUser(user1)
-        user2.medKits.add(medKit)
-        medKit.users.add(user2)
+        transaction(db) { medKitRepository.addUserToMedKit(user2.id, medKit.id) }
         val drug = createDrug(medKit)
-        entityManager.flush()
 
-        usingRepository.save(Using(UsingKey(user1.id, drug.id), user1, drug, 10.0))
-        usingRepository.save(Using(UsingKey(user2.id, drug.id), user2, drug, 20.0))
-        entityManager.flush()
-        entityManager.clear()
+        transaction(db) {
+            usingRepository.save(Using(userId = user1.id, drugId = drug.id, plannedAmount = 10.0))
+            usingRepository.save(Using(userId = user2.id, drugId = drug.id, plannedAmount = 20.0))
+        }
 
-        val usings = usingRepository.findAllByDrugId(drug.id)
+        val usings = transaction(db) { usingRepository.findAllByDrugId(drug.id) }
         assertEquals(2, usings.size)
     }
 
@@ -352,13 +287,12 @@ class RepositoryIntegrationTests {
         val user = createUser()
         val medKit = createMedKitForUser(user)
         val drug = createDrug(medKit)
-        entityManager.flush()
 
-        usingRepository.save(Using(UsingKey(user.id, drug.id), user, drug, 15.0))
-        entityManager.flush()
-        entityManager.clear()
+        transaction(db) {
+            usingRepository.save(Using(userId = user.id, drugId = drug.id, plannedAmount = 15.0))
+        }
 
-        val using = usingRepository.findByUserIdAndDrugId(user.id, drug.id)
+        val using = transaction(db) { usingRepository.findByUserIdAndDrugId(user.id, drug.id) }
         assertNotNull(using)
         assertEquals(15.0, using.plannedAmount)
     }
@@ -368,25 +302,8 @@ class RepositoryIntegrationTests {
         val user = createUser()
         val medKit = createMedKitForUser(user)
         val drug = createDrug(medKit)
-        entityManager.flush()
 
-        val using = usingRepository.findByUserIdAndDrugId(user.id, drug.id)
+        val using = transaction(db) { usingRepository.findByUserIdAndDrugId(user.id, drug.id) }
         assertNull(using)
-    }
-
-    @Test
-    fun `UsingRepository - findAllByUserIdWithDrug eagerly loads drug`() {
-        val user = createUser()
-        val medKit = createMedKitForUser(user)
-        val drug = createDrug(medKit, "TestDrug")
-        entityManager.flush()
-
-        usingRepository.save(Using(UsingKey(user.id, drug.id), user, drug, 10.0))
-        entityManager.flush()
-        entityManager.clear()
-
-        val usings = usingRepository.findAllByUserIdWithDrug(user.id)
-        assertEquals(1, usings.size)
-        assertEquals("TestDrug", usings[0].drug.name)
     }
 }

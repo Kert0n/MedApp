@@ -1,5 +1,6 @@
 package org.kert0n.medappserver.services
 
+import org.jetbrains.exposed.sql.Database
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.db.model.parsed.VidalDrug
 import org.kert0n.medappserver.db.repository.VidalDrugRepository
@@ -10,7 +11,8 @@ import kotlin.test.*
 class VidalDrugServiceTest {
 
     private val vidalDrugRepository: VidalDrugRepository = mock()
-    private val vidalDrugService = VidalDrugService(vidalDrugRepository)
+    private val database: Database = Database.connect("jdbc:h2:mem:vidaltest;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver")
+    private val vidalDrugService = VidalDrugService(vidalDrugRepository, database)
 
     @Test
     fun `fuzzySearchByName returns empty for blank input`() {
