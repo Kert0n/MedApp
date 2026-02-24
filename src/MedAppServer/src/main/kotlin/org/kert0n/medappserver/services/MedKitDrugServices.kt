@@ -36,13 +36,9 @@ class MedKitDrugServices(
     fun removeUserFromMedKit(medKitId: UUID, userId: UUID) {
         val medKit = medKitService.findByIdForUser(medKitId, userId)
         val user = userService.findById(userId)
-        val drugsInMedKit = findAllDrugsInMedkit(medKitId)
-        drugsInMedKit.forEach { drug ->
-            drug.usings.removeIf { it.user.id == userId }
-        }
         val drugs = drugService.findAllByMedKit(medKitId)
         drugs.forEach { drug ->
-            drug.usings.removeIf { it.user.id == userId }
+            drug.usings.removeIf { it.usingKey.userId == userId }
         }
         medKitService.removeUserFromMedKit(medKit, user)
     }
