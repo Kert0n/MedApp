@@ -1,11 +1,12 @@
-package org.kert0n.medappserver.services
+package org.kert0n.medappserver.services.models
 
-import org.kert0n.medappserver.controller.DrugDTO
 import org.kert0n.medappserver.controller.DrugCreateDTO
+import org.kert0n.medappserver.controller.DrugDTO
 import org.kert0n.medappserver.controller.DrugUpdateDTO
 import org.kert0n.medappserver.db.model.Drug
 import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.db.repository.DrugRepository
+import org.kert0n.medappserver.services.orchestrators.QuantityReductionService
 import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
@@ -16,7 +17,8 @@ import java.util.*
 
 @Service
 class DrugService(
-    private val drugRepository: DrugRepository
+    private val drugRepository: DrugRepository,
+    private val quantityReductionService: QuantityReductionService
 ) {
 
     private val logger = LoggerFactory.getLogger(DrugService::class.java)
@@ -37,6 +39,13 @@ class DrugService(
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found or access denied")
     }
 
+
+    @Transactional(readOnly = true)
+    fun findByIdForUserForUpdate(drugId: UUID, userId: UUID): Drug {
+        logger.debug("Finding locked drug {} for user {}", drugId, userId)
+        return drugRepository.findByIdAndMedKitUsersIdForUpdate(drugId, userId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found or access denied")
+    }
     @Transactional(readOnly = true)
     fun findAllByMedKit(medKitId: UUID): List<Drug> {
         logger.debug("Finding all drugs for medkit: {}", medKitId)
@@ -48,6 +57,7 @@ class DrugService(
         logger.debug("Finding all drugs for user: {}", userId)
         return drugRepository.findByUsingsUserId(userId)
     }
+
 
     @Transactional
     fun create(createDTO: DrugCreateDTO,medKit: MedKit, userId: UUID): Drug {
@@ -71,8 +81,8 @@ class DrugService(
     @Transactional
     fun update(drugId: UUID, updateDTO: DrugUpdateDTO, userId: UUID): Drug {
         logger.debug("Updating drug: {}", drugId)
-        
-        val drug = findByIdForUser(drugId, userId)
+
+        val drug = findByIdForUserForUpdate(drugId, userId)
         
         updateDTO.name?.let { drug.name = it }
         updateDTO.quantity?.let { 
@@ -80,7 +90,7 @@ class DrugService(
             drug.quantity = it
             // Handle quantity reduction - may need to adjust treatment plans
             if (it < oldQuantity) {
-                handleQuantityReduction(drug, userId)
+                quantityReductionService.handleQuantityReduction(drug)
             }
         }
         updateDTO.quantityUnit?.let { drug.quantityUnit = it }
@@ -104,16 +114,27 @@ class DrugService(
     @Transactional
     fun moveDrug(drugId: UUID, targetMedKit: MedKit, userId: UUID): Drug {
         logger.debug("Moving drug {} to medkit {}", drugId, targetMedKit)
-        
         val drug = findByIdForUser(drugId, userId)
+
+        val targetUserIds = targetMedKit.users.map { it.id }.toSet()
+
+        drug.usings.removeIf { using ->
+            val ownerId = using.user.id
+            val hasAccess = ownerId in targetUserIds
+            if (!hasAccess) {
+                logger.info("Removing treatment plan for user {} because they lack access to target medkit", ownerId)
+            }
+            !hasAccess
+        }
+
         drug.medKit = targetMedKit
         return drugRepository.save(drug)
     }
 
     @Transactional
-    fun consumeDrug(drugId: UUID, quantity: Double, userId: UUID): Drug {
+    fun consumeDrug(drugId: UUID, quantity: Double, userId: UUID): Drug? {
         logger.debug("Consuming {} of drug {}", quantity, drugId)
-        
+
         val drug = findByIdForUser(drugId, userId)
 
         if (quantity > drug.quantity) {
@@ -121,23 +142,24 @@ class DrugService(
         }
 
         drug.quantity -= quantity
-        handleQuantityReduction(drug, userId)
-        return drugRepository.save(drug)
+        drugRepository.save(drug)
+        return quantityReductionService.handleQuantityReduction(drug)
+
     }
 
-    @Transactional(readOnly = true)
-    fun getPlannedQuantity(drugId: UUID): Double {
-        return drugRepository.sumPlannedAmount(drugId)
-    }
 
+
+    //    @Transactional(readOnly = true)
+//    fun getPlannedQuantity(drugId: UUID): Double {
+//        return drugRepository.sumPlannedAmount(drugId)
+//    }
     @Transactional(readOnly = true)
     fun toDrugDTO(drug: Drug): DrugDTO {
-        val plannedQuantity = getPlannedQuantity(drug.id)
         return DrugDTO(
             id = drug.id,
             name = drug.name,
             quantity = drug.quantity,
-            plannedQuantity = plannedQuantity,
+            plannedQuantity = drug.totalPlannedAmount,
             quantityUnit = drug.quantityUnit,
             formType = drug.formType,
             category = drug.category,
@@ -148,18 +170,5 @@ class DrugService(
         )
     }
 
-    private fun handleQuantityReduction(drug: Drug, userId: UUID) {
-        logger.debug("Handling quantity reduction for drug: {}", drug.id)
-
-        // Reduce planned amounts proportionally when stock drops below reserved quantity.
-        val totalPlanned = getPlannedQuantity(drug.id)
-        if (totalPlanned <= drug.quantity) return
-        logger.warn("Drug {} quantity {} is less than planned {}", drug.id, drug.quantity, totalPlanned)
-        val reduceFactor = drug.quantity / totalPlanned
-        drug.usings.forEach { it.plannedAmount *= reduceFactor }
-        drugRepository.save(drug)
-        // TODO FIREBASE NOTIFICATION
-
-    }
 
 }

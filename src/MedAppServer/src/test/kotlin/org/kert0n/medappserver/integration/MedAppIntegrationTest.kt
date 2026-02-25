@@ -4,8 +4,10 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.controller.DrugCreateDTO
 import org.kert0n.medappserver.controller.UsingCreateDTO
-import org.kert0n.medappserver.db.model.*
-import org.kert0n.medappserver.services.*
+import org.kert0n.medappserver.services.models.DrugService
+import org.kert0n.medappserver.services.models.MedKitService
+import org.kert0n.medappserver.services.models.UserService
+import org.kert0n.medappserver.services.models.UsingService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles

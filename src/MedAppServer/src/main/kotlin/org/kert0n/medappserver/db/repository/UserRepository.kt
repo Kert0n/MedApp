@@ -8,12 +8,7 @@ import java.util.*
 
 interface UserRepository: JpaRepository<User, UUID> {
 
-    @Query("""
-        SELECT u FROM User u
-        JOIN u.medKits mk
-        WHERE mk.id = :medId
-    """)
-    fun findByMedKitsId(@Param("medId") medId: UUID): List<User>
+    fun findAllByMedKitsId(@Param("medId") medId: UUID): Set<User>
     
     @Query("""
         SELECT u FROM User u

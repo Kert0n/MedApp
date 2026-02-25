@@ -7,19 +7,19 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
-import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
-import org.kert0n.medappserver.services.MedKitDrugServices
-import org.kert0n.medappserver.services.MedKitService
-import org.kert0n.medappserver.services.userId
+import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
+import org.kert0n.medappserver.services.models.MedKitService
+import org.kert0n.medappserver.services.models.userId
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
 import java.util.*
+import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
 @RequestMapping("/med-kit")
@@ -33,18 +33,6 @@ class MedKitController(
         @NotNull
         @Schema(description = "Created medkit ID")
         val id: UUID
-    )
-
-    data class MedKitSummaryDTO(
-        @NotNull
-        @Schema(description = "Medkit ID")
-        val id: UUID,
-        @NotNull
-        @Schema(description = "Number of users in medkit")
-        val userCount: Int,
-        @NotNull
-        @Schema(description = "Number of drugs in medkit")
-        val drugCount: Int
     )
 
     data class AddUserRequest(
@@ -100,11 +88,9 @@ class MedKitController(
         ),
         ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
     ])
-    fun getAllMedKits(authentication: Authentication): List<MedKitSummaryDTO> {
+    fun getAllMedKits(authentication: Authentication): Set<MedKitSummaryDTO> {
         logger.debug("GET /med-kit by user {}", authentication.userId)
-        return medKitService.findMedKitSummaries(authentication.userId).map {
-            MedKitSummaryDTO(it.first, it.second, it.third)
-        }
+        return medKitService.findMedKitSummaries(authentication.userId)
     }
 
     @PostMapping("/{medKitId}/share")
@@ -178,4 +164,15 @@ data class MedKitDTO(
     val id: UUID,
     @Schema(description = "Drugs in medkit")
     val drugs: Set<DrugDTO>
+)
+data class MedKitSummaryDTO(
+    @NotNull
+    @Schema(description = "Medkit ID")
+    val id: UUID,
+    @NotNull
+    @Schema(description = "Number of users in medkit")
+    val userCount: Long,
+    @NotNull
+    @Schema(description = "Number of drugs in medkit")
+    val drugCount: Long
 )

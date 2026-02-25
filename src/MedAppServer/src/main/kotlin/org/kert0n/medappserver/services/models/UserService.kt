@@ -1,4 +1,4 @@
-package org.kert0n.medappserver.services
+package org.kert0n.medappserver.services.models
 
 import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.UserRepository

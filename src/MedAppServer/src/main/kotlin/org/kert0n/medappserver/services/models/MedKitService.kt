@@ -1,8 +1,7 @@
-package org.kert0n.medappserver.services
+package org.kert0n.medappserver.services.models
 
 import com.sksamuel.aedile.core.Cache
-import org.kert0n.medappserver.services.MedKitDrugServices
-import org.kert0n.medappserver.controller.MedKitDTO
+import org.kert0n.medappserver.controller.MedKitSummaryDTO
 import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.MedKitRepository
@@ -34,6 +33,8 @@ open class MedKitService(
         return medKit
     }
 
+
+
     @Transactional(readOnly = true)
     fun findById(medKitId: UUID): MedKit {
         logger.debug("Finding medkit by ID: {}", medKitId)
@@ -56,15 +57,13 @@ open class MedKitService(
     @Transactional(readOnly = true)
     fun findAllByUser(userId: UUID): List<MedKit> {
         logger.debug("Finding all medkits for user: {}", userId)
-        return medKitRepository.findByUsersId(userId)
+        return medKitRepository.findByUserId(userId)
     }
 
     @Transactional(readOnly = true)
-    fun findMedKitSummaries(userId: UUID): List<Triple<UUID, Int, Int>> {
+    fun findMedKitSummaries(userId: UUID): Set<MedKitSummaryDTO> {
         logger.debug("Finding medkit summaries for user: {}", userId)
-        return medKitRepository.findMedKitSummariesByUserId(userId).map { row ->
-            Triple(row[0] as UUID, row[1] as Int, row[2] as Int)
-        }
+        return medKitRepository.findMedKitSummariesByUserId(userId)
     }
 
     fun generateMedKitShareKey(medKitId: UUID, userId: UUID): String {

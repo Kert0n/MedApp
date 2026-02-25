@@ -3,7 +3,7 @@ package org.kert0n.medappserver.controller
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.db.model.User
-import org.kert0n.medappserver.services.UserService
+import org.kert0n.medappserver.services.models.UserService
 import org.kert0n.medappserver.services.security.SecurityService
 import org.mockito.kotlin.*
 import org.springframework.beans.factory.annotation.Autowired

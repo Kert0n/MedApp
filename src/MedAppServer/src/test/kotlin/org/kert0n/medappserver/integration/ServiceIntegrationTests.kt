@@ -2,16 +2,16 @@ package org.kert0n.medappserver.integration
 
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Test
-import org.kert0n.medappserver.services.MedKitDrugServices
+import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
 import org.kert0n.medappserver.controller.DrugCreateDTO
 import org.kert0n.medappserver.controller.DrugUpdateDTO
 import org.kert0n.medappserver.controller.UsingCreateDTO
 import org.kert0n.medappserver.controller.UsingUpdateDTO
 import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.UserRepository
-import org.kert0n.medappserver.services.DrugService
-import org.kert0n.medappserver.services.MedKitService
-import org.kert0n.medappserver.services.UsingService
+import org.kert0n.medappserver.services.models.DrugService
+import org.kert0n.medappserver.services.models.MedKitService
+import org.kert0n.medappserver.services.models.UsingService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
@@ -126,7 +126,7 @@ class ServiceIntegrationTests() {
         entityManager.flush()
 
         val consumed = drugService.consumeDrug(drug.id, 30.0, user.id)
-        assertEquals(70.0, consumed.quantity)
+        assertEquals(70.0, consumed?.quantity)
     }
 
     @Test
@@ -188,13 +188,13 @@ class ServiceIntegrationTests() {
         entityManager.flush()
 
         // No treatment plans yet
-        assertEquals(0.0, drugService.getPlannedQuantity(drug.id))
+        assertEquals(0.0, drug.totalPlannedAmount)
 
         // Create treatment plan
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 30.0))
         entityManager.flush()
-
-        assertEquals(30.0, drugService.getPlannedQuantity(drug.id))
+        entityManager.clear()
+        assertEquals(30.0, drugService.findById(drug.id).totalPlannedAmount)
     }
 
     @Test
@@ -207,8 +207,8 @@ class ServiceIntegrationTests() {
         )
         usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 25.0))
         entityManager.flush()
-
-        val dto = drugService.toDrugDTO(drug)
+        entityManager.clear()
+        val dto = drugService.toDrugDTO(drugService.findById(drug.id))
         assertEquals(25.0, dto.plannedQuantity)
         assertEquals(100.0, dto.quantity)
     }
