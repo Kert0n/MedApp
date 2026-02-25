@@ -3,6 +3,7 @@ package org.kert0n.medappserver.db.model
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
+import org.hibernate.annotations.Formula
 import java.util.*
 
 @Entity
@@ -50,6 +51,9 @@ class Drug (
     
     @Column(name = "description", length = Integer.MAX_VALUE)
     var description: String?,
+
+    @Formula("(SELECT COALESCE(SUM(u.planned_amount), 0) FROM usings u WHERE u.drug_id = id)")
+    var totalPlannedAmount: Double = 0.0,
     
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)

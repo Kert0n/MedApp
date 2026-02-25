@@ -6,7 +6,7 @@ import org.kert0n.medappserver.TestcontainersConfiguration
 import org.kert0n.medappserver.db.model.parsed.FormType
 import org.kert0n.medappserver.db.model.parsed.VidalDrug
 import org.kert0n.medappserver.db.repository.VidalDrugRepository
-import org.kert0n.medappserver.services.VidalDrugService
+import org.kert0n.medappserver.services.models.VidalDrugService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -14,7 +14,6 @@ import org.springframework.test.context.TestPropertySource
 import jakarta.persistence.EntityManager
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
-import java.util.*
 import kotlin.test.*
 
 /**

@@ -1,4 +1,4 @@
-package org.kert0n.medappserver.services
+package org.kert0n.medappserver.services.models
 
 import org.kert0n.medappserver.controller.UsingCreateDTO
 import org.kert0n.medappserver.controller.UsingDTO
@@ -6,6 +6,7 @@ import org.kert0n.medappserver.controller.UsingUpdateDTO
 import org.kert0n.medappserver.db.model.Using
 import org.kert0n.medappserver.db.model.UsingKey
 import org.kert0n.medappserver.db.repository.UsingRepository
+import org.kert0n.medappserver.services.orchestrators.QuantityReductionService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -20,20 +21,26 @@ class UsingService(
     private val usingRepository: UsingRepository,
     val logger: Logger = LoggerFactory.getLogger(UsingService::class.java),
     private val userService: UserService,
-    private val drugService: DrugService
+    private val drugService: DrugService,
+    private val quantityReductionService: QuantityReductionService
 ) {
 
 
     @Transactional(readOnly = true)
     fun findAllByUser(userId: UUID): List<Using> {
         logger.debug("Finding all usings for user: {}", userId)
-        return usingRepository.findAllByUserId(userId)
+        return usingRepository.findAllByUsingKeyUserId(userId)
+    }
+
+    fun deleteAllByUserIdInMedkit(userId: UUID, medKitId: UUID) {
+        logger.debug("Deleting all usings for user: {}", userId)
+        usingRepository.deleteByUserIdAndMedKitId(userId, medKitId)
     }
 
     @Transactional(readOnly = true)
     fun findAllByDrug(drugId: UUID): List<Using> {
         logger.debug("Finding all usings for drug: {}", drugId)
-        return usingRepository.findAllByDrugId(drugId)
+        return usingRepository.findAllByUsingKeyDrugId(drugId)
     }
 
     @Transactional(readOnly = true)
@@ -49,14 +56,14 @@ class UsingService(
 
 
         val user = userService.findById(userId)
-        val drug = drugService.findByIdForUser(createDTO.drugId, userId)
+        val drug = drugService.findByIdForUserForUpdate(createDTO.drugId, userId)
 
         if (usingRepository.findByUserIdAndDrugId(userId, createDTO.drugId) != null) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "using already exists for this user and drug")
         }
         
         // Validate planned quantity against currently reserved amounts to avoid overbooking stock.
-        val currentPlanned = drugService.getPlannedQuantity(createDTO.drugId)
+        val currentPlanned = drug.totalPlannedAmount
         val availableQuantity = drug.quantity - currentPlanned
         
         if (createDTO.plannedAmount > availableQuantity) {
@@ -82,15 +89,12 @@ class UsingService(
     @Transactional
     fun updateTreatmentPlan(userId: UUID, drugId: UUID, updateDTO: UsingUpdateDTO): Using {
         logger.debug("Updating using for user {} and drug {}", userId, drugId)
-        
-        // Validate planned amount is positive
-        if (updateDTO.plannedAmount <= 0) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Planned amount must be positive")
-        }
+
+        // locking drug
+        val drug = drugService.findByIdForUserForUpdate(drugId, userId)
         val using = findByUserAndDrug(userId, drugId)
         // Exclude the current plan when checking availability.
-        val totalPlanned = drugService.getPlannedQuantity(using.drug.id)
-        val otherPlanned = totalPlanned - using.plannedAmount
+        val otherPlanned = using.drug.totalPlannedAmount - using.plannedAmount
         val availableQuantity = using.drug.quantity - otherPlanned
         
         if (updateDTO.plannedAmount > availableQuantity) {
@@ -111,7 +115,6 @@ class UsingService(
     fun recordIntake(userId: UUID, drugId: UUID, quantityConsumed: Double): Using? {
         logger.debug("Recording intake for user {} and drug {}, quantity: {}", userId, drugId, quantityConsumed)
         val using = findByUserAndDrug(userId, drugId)
-        val drug = using.drug
         // Check if consumed quantity exceeds planned amount
         if (quantityConsumed > using.plannedAmount) {
             throw ResponseStatusException(
@@ -119,16 +122,19 @@ class UsingService(
                 "Consumed quantity exceeds planned amount. Planned: ${using.plannedAmount}, Consumed: $quantityConsumed"
             )
         }
-        
-        if (quantityConsumed > drug.quantity) {
+
+        if (quantityConsumed > using.drug.quantity) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient drug quantity available")
         }
-        
-        // Reduce drug quantity
-        drugService.consumeDrug(drugId, quantityConsumed, userId)
-        
+
         // Update planned amount
+        // IMPORTANT! THIS MUST ALWAYS BE BEFORE QUANTITY REDUCTION, SO IT CAN PROPERLY ASSESS TOTAL PLANNED QUANTITY
         using.plannedAmount = maxOf(0.0, using.plannedAmount - quantityConsumed)
+        // Reduce drug quantity
+        using.drug.quantity -= quantityConsumed
+        // This could be replaced with reloading drug from db, but this much quicker
+        using.drug.totalPlannedAmount -= quantityConsumed
+        quantityReductionService.handleQuantityReduction(using.drug)
         if (using.plannedAmount == 0.0) {
             usingRepository.delete(using)
             return null
@@ -137,6 +143,7 @@ class UsingService(
         
         return usingRepository.save(using)
     }
+
 
     @Transactional
     fun deleteTreatmentPlan(userId: UUID, drugId: UUID) {

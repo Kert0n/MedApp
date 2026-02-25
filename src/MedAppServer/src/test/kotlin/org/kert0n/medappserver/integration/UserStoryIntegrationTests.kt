@@ -2,17 +2,28 @@ package org.kert0n.medappserver.integration
 
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
+import org.kert0n.medappserver.controller.DrugCreateDTO
+import org.kert0n.medappserver.controller.DrugUpdateDTO
 import org.kert0n.medappserver.controller.UsingCreateDTO
-import org.kert0n.medappserver.db.model.*
-import org.kert0n.medappserver.db.repository.*
-import org.kert0n.medappserver.services.DrugService
-import org.kert0n.medappserver.services.MedKitDrugServices
-import org.kert0n.medappserver.services.MedKitService
-import org.kert0n.medappserver.services.UsingService
+import org.kert0n.medappserver.controller.UsingUpdateDTO
+import org.kert0n.medappserver.db.model.Drug
+import org.kert0n.medappserver.db.model.User
+import org.kert0n.medappserver.db.repository.DrugRepository
+import org.kert0n.medappserver.db.repository.MedKitRepository
+import org.kert0n.medappserver.db.repository.UserRepository
+import org.kert0n.medappserver.db.repository.UsingRepository
+import org.kert0n.medappserver.services.models.DrugService
+import org.kert0n.medappserver.services.models.MedKitService
+import org.kert0n.medappserver.services.models.UsingService
+import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
+import org.kert0n.medappserver.testutil.DatabaseTestHelper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 import java.util.*
 import kotlin.test.*
 
@@ -34,6 +45,8 @@ import kotlin.test.*
 @Transactional
 class UserStoryIntegrationTests {
 
+
+    @Autowired private lateinit var dbHelper: DatabaseTestHelper
     @Autowired
     private lateinit var userRepository: UserRepository
 
@@ -274,11 +287,11 @@ class UserStoryIntegrationTests {
         )
         drugRepository.save(drug1)
         drugRepository.save(drug2)
-        entityManager.flush()
 
         // Create new medkit for migration
         val newMedkit = medKitService.createNew(user.id)
         entityManager.flush()
+        entityManager.clear()
 
         // Verify user has 2 medkits
         assertEquals(2, medKitService.findAllByUser(user.id).size)
@@ -340,8 +353,8 @@ class UserStoryIntegrationTests {
 
         // Drug quantity should be exactly zero
         val updatedDrug = drugRepository.findById(drug.id).orElse(null)
-        assertNotNull(updatedDrug)
-        assertEquals(0.0, updatedDrug.quantity, "All drug should be consumed")
+        // Must be deleted
+        assertNull(updatedDrug)
         
         println("✅ Story 5 passed: All drug quantity consumed correctly")
     }
@@ -441,10 +454,9 @@ class UserStoryIntegrationTests {
         // Bob creates a treatment plan for 50 tablets (should succeed: 100 - 40 = 60 available)
         usingService.createTreatmentPlan(bob.id, UsingCreateDTO(vitaminC.id, 50.0))
         entityManager.flush()
-
+        entityManager.clear()
         // Total planned = 90, should match sumPlannedAmount
-        val totalPlanned = drugRepository.sumPlannedAmount(vitaminC.id)
-        assertEquals(90.0, totalPlanned, "Total planned should be 90")
+        assertEquals(90.0, drugRepository.findByIdOrNull(vitaminC.id)?.totalPlannedAmount, "Total planned should be 90")
 
         // Verify each user has their own plan
         val annaUsing = usingRepository.findByUserIdAndDrugId(anna.id, vitaminC.id)
@@ -533,7 +545,7 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         // Try to create a plan for 60 tablets when only 50 available
-        assertFailsWith<org.springframework.web.server.ResponseStatusException> {
+        assertFailsWith<ResponseStatusException> {
             usingService.createTreatmentPlan(user.id, UsingCreateDTO(drug.id, 60.0))
         }
 
@@ -547,16 +559,16 @@ class UserStoryIntegrationTests {
         val shareKey = medKitService.generateMedKitShareKey(medkit.id, user.id)
         medKitService.joinMedKitByKey(shareKey, user2.id)
         entityManager.flush()
-
-        assertFailsWith<org.springframework.web.server.ResponseStatusException> {
+        entityManager.clear()
+        assertFailsWith<ResponseStatusException> {
             usingService.createTreatmentPlan(user2.id, UsingCreateDTO(drug.id, 25.0))
         }
 
         // But 20 should work
         usingService.createTreatmentPlan(user2.id, UsingCreateDTO(drug.id, 20.0))
         entityManager.flush()
-
-        assertEquals(50.0, drugRepository.sumPlannedAmount(drug.id))
+        entityManager.clear()
+        assertEquals(50.0, drugRepository.findByIdOrNull(drug.id)?.totalPlannedAmount)
 
         println("✅ Story 9 passed: Cannot over-plan drug quantity")
     }
@@ -606,13 +618,15 @@ class UserStoryIntegrationTests {
         usingService.createTreatmentPlan(dad.id, UsingCreateDTO(vitamins.id, 30.0))
         usingService.createTreatmentPlan(child.id, UsingCreateDTO(vitamins.id, 30.0))
         entityManager.flush()
-
+        entityManager.clear()
         // Total planned = 90 (full supply)
-        assertEquals(90.0, drugRepository.sumPlannedAmount(vitamins.id))
+        assertEquals(90.0, drugRepository.findByIdOrNull(vitamins.id)?.totalPlannedAmount)
 
         // Everyone takes their daily vitamin
         usingService.recordIntake(mom.id, vitamins.id, 1.0)
+        entityManager.flush()
         usingService.recordIntake(dad.id, vitamins.id, 1.0)
+        entityManager.flush()
         usingService.recordIntake(child.id, vitamins.id, 1.0)
         entityManager.flush()
         entityManager.clear()
@@ -667,7 +681,7 @@ class UserStoryIntegrationTests {
         entityManager.flush()
 
         // Move drug to travel kit
-        drugService.moveDrug(painkiller.id, travelKit, user.id)
+        medKitDrugServices.moveDrug(painkiller.id, travelKit.id, user.id)
         entityManager.flush()
         entityManager.clear()
 
@@ -725,19 +739,19 @@ class UserStoryIntegrationTests {
         // Anna should be able to increase her plan to 70 (available for her = 100 - 30 (bob) = 70)
         val updated = usingService.updateTreatmentPlan(
             anna.id, drug.id,
-            org.kert0n.medappserver.controller.UsingUpdateDTO(70.0)
+            UsingUpdateDTO(70.0)
         )
         assertEquals(70.0, updated.plannedAmount)
         entityManager.flush()
-
+        entityManager.clear()
         // Total planned should now be 100 (70 + 30)
-        assertEquals(100.0, drugRepository.sumPlannedAmount(drug.id))
+        assertEquals(100.0, drugRepository.findByIdOrNull(drug.id)?.totalPlannedAmount)
 
         // Anna should NOT be able to increase to 71 (exceeds available)
-        assertFailsWith<org.springframework.web.server.ResponseStatusException> {
+        assertFailsWith<ResponseStatusException> {
             usingService.updateTreatmentPlan(
                 anna.id, drug.id,
-                org.kert0n.medappserver.controller.UsingUpdateDTO(71.0)
+                UsingUpdateDTO(71.0)
             )
         }
 
@@ -787,5 +801,481 @@ class UserStoryIntegrationTests {
         assertNull(deletedPlan)
 
         println("✅ Story 13 passed: Deleting drug removed its treatment plans")
+    }
+
+    /**
+     * Story 14: Migrating a drug to a private medkit strips access from former shared users
+     * * Validates: Migration Security Audit (The "Void Pointer" fix)
+     */
+    @Test
+    fun `Story 14 - Moving shared drug to private medkit removes other users treatment plans`() {
+        // Setup: Anna, Bob, and Charlie share an Old MedKit
+        val anna = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "anna_${UUID.randomUUID()}"))
+        val bob = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "bob_${UUID.randomUUID()}"))
+        val charlie = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "charlie_${UUID.randomUUID()}"))
+
+        val oldKit = medKitService.createNew(anna.id)
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(oldKit.id, anna.id), bob.id)
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(oldKit.id, anna.id), charlie.id)
+
+        // Setup: Anna and Bob share a New MedKit (Charlie is excluded)
+        val newKit = medKitService.createNew(anna.id)
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(newKit.id, anna.id), bob.id)
+
+        // Add drug to old kit
+        val drug = drugRepository.save(
+            Drug(
+                id = UUID.randomUUID(), name = "Special Meds", quantity = 90.0,
+                quantityUnit = "pills", medKit = oldKit, formType = null,
+                category = null,
+                manufacturer = null,
+                country = null,
+                description = null
+            )
+        )
+
+        // Everyone creates a plan for 30 pills
+        usingService.createTreatmentPlan(anna.id, UsingCreateDTO(drug.id, 30.0))
+        usingService.createTreatmentPlan(bob.id, UsingCreateDTO(drug.id, 30.0))
+        usingService.createTreatmentPlan(charlie.id, UsingCreateDTO(drug.id, 30.0))
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // Anna deletes the old kit and migrates to the new kit
+        medKitDrugServices.delete(oldKit.id, anna.id, newKit.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // Verify: Anna and Bob still have their plans. Charlie's plan was deleted.
+        assertNotNull(usingRepository.findByUserIdAndDrugId(anna.id, drug.id), "Anna should keep her plan")
+        assertNotNull(usingRepository.findByUserIdAndDrugId(bob.id, drug.id), "Bob should keep his plan")
+        assertNull(
+            usingRepository.findByUserIdAndDrugId(charlie.id, drug.id),
+            "Charlie's plan MUST be deleted for security"
+        )
+
+        println("✅ Story 14 passed: Migration security successfully audited treatment plans")
+    }
+
+    /**
+     * Story 15: Heavy consumption scales down shared treatment plans proportionally
+     * * Validates: handleQuantityReduction logic precision
+     */
+    @Test
+    fun `Story 15 - Consuming below reserved threshold scales plans proportionally`() {
+        val anna = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "anna_${UUID.randomUUID()}"))
+        val bob = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "bob_${UUID.randomUUID()}"))
+
+        val kit = medKitService.createNew(anna.id)
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(kit.id, anna.id), bob.id)
+
+        // Drug has 100 total
+        val drug = drugRepository.save(
+            Drug(
+                id = UUID.randomUUID(), name = "Shared Vitamins", quantity = 100.0,
+                quantityUnit = "pills", medKit = kit, formType = null,
+                category = null,
+                manufacturer = null,
+                country = null,
+                description = null
+            )
+        )
+
+        // Anna plans 60, Bob plans 40. Total planned = 100.
+        usingService.createTreatmentPlan(anna.id, UsingCreateDTO(drug.id, 60.0))
+        usingService.createTreatmentPlan(bob.id, UsingCreateDTO(drug.id, 40.0))
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // Bob consumes 50 pills (ignoring his plan limit for emergency)
+        // Drug quantity drops to 50.
+        // Factor should be: 50 / 100 = 0.5
+        drugService.consumeDrug(drug.id, 50.0, bob.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        val annaPlan = usingRepository.findByUserIdAndDrugId(anna.id, drug.id)!!
+        val bobPlan = usingRepository.findByUserIdAndDrugId(bob.id, drug.id)!!
+
+        // Plans should be exactly halved
+        assertEquals(30.0, annaPlan.plannedAmount, "Anna's plan should scale from 60 to 30")
+        assertEquals(20.0, bobPlan.plannedAmount, "Bob's plan should scale from 40 to 20")
+
+        println("✅ Story 15 passed: Treatment plans scaled proportionally after heavy consumption")
+    }
+
+    /**
+     * Story 16: Partial migration prevents orphan removal
+     * * Validates: Explicit `targetMedKit.drugs.add(drug)` fix
+     */
+    @Test
+    fun `Story 16 - Moving single drug preserves it from orphan removal`() {
+        val user = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "user_${UUID.randomUUID()}"))
+
+        val sourceKit = medKitService.createNew(user.id)
+        val targetKit = medKitService.createNew(user.id)
+
+        val drugToMove = drugRepository.save(
+            Drug(
+                id = UUID.randomUUID(), name = "Moving Pill", quantity = 10.0,
+                quantityUnit = "pills", medKit = sourceKit, formType = null,
+                category = null,
+                manufacturer = null,
+                country = null,
+                description = null
+            )
+        )
+
+        val drugToStay = drugRepository.save(
+            Drug(
+                id = UUID.randomUUID(), name = "Staying Pill", quantity = 10.0,
+                quantityUnit = "pills", medKit = sourceKit, formType = null,
+                category = null,
+                manufacturer = null,
+                country = null,
+                description = null
+            )
+        )
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // Move ONLY one drug
+        medKitDrugServices.moveDrug(drugToMove.id, targetKit.id, user.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // Verify it wasn't deleted by orphan removal during the move
+        val movedDrug = drugRepository.findById(drugToMove.id).orElse(null)
+        assertNotNull(movedDrug, "Moved drug must not be deleted")
+        assertEquals(targetKit.id, movedDrug.medKit.id, "Drug should point to new kit")
+
+        val stayingDrug = drugRepository.findById(drugToStay.id).orElse(null)
+        assertNotNull(stayingDrug, "Staying drug must not be affected")
+        assertEquals(sourceKit.id, stayingDrug.medKit.id)
+
+        println("✅ Story 16 passed: Moving a single drug prevented orphan removal")
+    }
+
+    /**
+     * Story 17: The Roommate Saga (The Ultimate Stress Test)
+     * * Validates:
+     * - Multi-user sharing and permissions
+     * - Proportional quantity reduction of Usings during heavy consumption
+     * - Security stripping of Usings during single-drug moves
+     * - Security stripping of Usings during full kit migrations
+     * - Orphan removal prevention during migrations
+     * - Auto-deletion of MedKits when empty
+     * - JPA L1 Cache integrity across complex interwoven workflows
+     */
+    @Test
+    fun `Story 17 - The Roommate Saga complex interwoven workflow`() {
+        // ==========================================
+        // PHASE 1: Setup and Sharing
+        // ==========================================
+        val alice = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "alice_${UUID.randomUUID()}"))
+        val bob = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "bob_${UUID.randomUUID()}"))
+        val charlie = userRepository.save(User(id = UUID.randomUUID(), hashedKey = "charlie_${UUID.randomUUID()}"))
+
+        val homeKit = medKitService.createNew(alice.id)
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(homeKit.id, alice.id), bob.id)
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(homeKit.id, alice.id), charlie.id)
+
+        val allergyMeds = drugRepository.save(
+            Drug(
+                id = UUID.randomUUID(), name = "Allergy Meds", quantity = 60.0,
+                quantityUnit = "pills", medKit = homeKit, formType = null,
+                category = null,
+                manufacturer = null,
+                country = null,
+                description = null
+            )
+        )
+        val painkillers = drugRepository.save(
+            Drug(
+                id = UUID.randomUUID(), name = "Painkillers", quantity = 100.0,
+                quantityUnit = "pills", medKit = homeKit, formType = null,
+                category = null,
+                manufacturer = null,
+                country = null,
+                description = null
+            )
+        )
+
+        // Emulate end of HTTP request
+        entityManager.flush()
+        entityManager.clear()
+
+        // ==========================================
+        // PHASE 2: Everyone makes Treatment Plans
+        // ==========================================
+        // Allergy Meds: 60 total. Alice (20), Bob (20), Charlie (20) = 60 planned.
+        usingService.createTreatmentPlan(alice.id, UsingCreateDTO(allergyMeds.id, 20.0))
+        usingService.createTreatmentPlan(bob.id, UsingCreateDTO(allergyMeds.id, 20.0))
+        usingService.createTreatmentPlan(charlie.id, UsingCreateDTO(allergyMeds.id, 20.0))
+
+        // Painkillers: 100 total. Bob plans 30, Charlie plans 30.
+        usingService.createTreatmentPlan(bob.id, UsingCreateDTO(painkillers.id, 30.0))
+        usingService.createTreatmentPlan(charlie.id, UsingCreateDTO(painkillers.id, 30.0))
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // ==========================================
+        // PHASE 3: Heavy Consumption & Auto-Scaling
+        // ==========================================
+        // Bob consumes 30 Allergy Meds. Stock drops from 60 to 30.
+        // Total planned was 60. Stock is now 30. Scale factor = 30/60 = 0.5.
+        // All plans (20) should auto-scale down to 10.
+        drugService.consumeDrug(allergyMeds.id, 30.0, bob.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        val updatedAllergyMeds = drugRepository.findById(allergyMeds.id).get()
+        assertEquals(30.0, updatedAllergyMeds.quantity, "Stock should be 30")
+
+        val aliceAllergyPlan = usingRepository.findByUserIdAndDrugId(alice.id, allergyMeds.id)!!
+        assertEquals(10.0, aliceAllergyPlan.plannedAmount, "Alice's plan should auto-scale to 10")
+
+        // ==========================================
+        // PHASE 4: Single Drug Move (Security Audit)
+        // ==========================================
+        // Alice makes a private travel kit and takes the Painkillers.
+        val travelKit = medKitService.createNew(alice.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        medKitDrugServices.moveDrug(painkillers.id, travelKit.id, alice.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // Verify Bob and Charlie lost their Painkiller plans because they can't see the Travel Kit
+        assertNull(usingRepository.findByUserIdAndDrugId(bob.id, painkillers.id), "Bob's plan must be deleted")
+        assertNull(usingRepository.findByUserIdAndDrugId(charlie.id, painkillers.id), "Charlie's plan must be deleted")
+
+        val movedPainkillers = drugRepository.findById(painkillers.id).get()
+        assertEquals(travelKit.id, movedPainkillers.medKit.id, "Drug successfully moved")
+
+        // ==========================================
+        // PHASE 5: Kill & Migrate (The Final Boss)
+        // ==========================================
+        // Alice deletes Home Kit. She moves remaining Allergy Meds to a new "Duo Kit" with just Bob.
+        val duoKit = medKitService.createNew(alice.id)
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(duoKit.id, alice.id), bob.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // Perform the complex deletion migration
+        medKitDrugServices.delete(homeKit.id, alice.id, duoKit.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        // Verify Home Kit is dead
+        assertNull(medKitRepository.findByIdOrNull(homeKit.id), "Home kit must be completely deleted")
+
+        // Verify Allergy Meds moved safely without orphan removal
+        val migratedAllergyMeds = drugRepository.findById(allergyMeds.id).orElse(null)
+        assertNotNull(migratedAllergyMeds, "Allergy meds must survive the migration")
+        assertEquals(duoKit.id, migratedAllergyMeds.medKit.id, "Allergy meds are in Duo Kit")
+
+        // Verify Charlie's Allergy Meds plan was stripped because he isn't in Duo Kit
+        assertNull(
+            usingRepository.findByUserIdAndDrugId(charlie.id, allergyMeds.id),
+            "Charlie's last plan must be deleted"
+        )
+
+        // Verify Alice and Bob kept their 10.0 scaled plans
+        val finalAlicePlan = usingRepository.findByUserIdAndDrugId(alice.id, allergyMeds.id)!!
+        assertEquals(10.0, finalAlicePlan.plannedAmount, "Alice kept her plan through migration")
+
+        // ==========================================
+        // PHASE 6: Last User Standing Auto-Cleanup
+        // ==========================================
+        // Bob leaves Duo Kit
+        medKitDrugServices.removeUserFromMedKit(duoKit.id, bob.id)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        val duoKitCheck1 = medKitRepository.findById(duoKit.id).get()
+        assertEquals(1, duoKitCheck1.users.size, "Only Alice remains")
+
+        // Alice leaves Duo Kit. Because she is the last user, the kit should auto-delete.
+        // (Using medKitService directly as medKitDrugServices might check for users first)
+        val aliceFresh = userRepository.findById(alice.id).get()
+        medKitService.removeUserFromMedKit(duoKitCheck1, aliceFresh)
+
+        entityManager.flush()
+        entityManager.clear()
+
+        assertNull(medKitRepository.findByIdOrNull(duoKit.id), "Duo kit must auto-delete when last user leaves")
+        assertNull(
+            drugRepository.findByIdOrNull(allergyMeds.id),
+            "Cascade should kill the drugs inside the abandoned kit"
+        )
+
+        println("✅ Story 17 passed: The Roommate Saga completed without a single JPA integrity violation")
+    }
+    @Test
+    fun `Story 18 - Full Lifecycle Alterations, Movement, and Deletion`() {
+        // ── Setup ──
+        val alice = dbHelper.freshUser("alice")
+        val bob = dbHelper.freshUser("bob")
+
+        val sourceKit = medKitService.createNew(alice.id)
+        val targetKit = medKitService.createNew(alice.id) // Only Alice has access to this one
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(sourceKit.id, alice.id), bob.id)
+
+        // Alice adds 100 tablets to sourceKit
+        val createDrugDto = DrugCreateDTO(
+            name = "LifePill", quantity = 100.0, quantityUnit = "tablets",
+            medKitId = sourceKit.id, formType = null, category = null,
+            manufacturer = null, country = null, description = null
+        )
+        val drug = medKitDrugServices.createDrugInMedkit(createDrugDto, alice.id)
+        dbHelper.flushAndClear()
+
+        // Alice and Bob create treatment plans (40 each, total 80)
+        usingService.createTreatmentPlan(alice.id, UsingCreateDTO(drug.id, 40.0))
+        usingService.createTreatmentPlan(bob.id, UsingCreateDTO(drug.id, 40.0))
+        dbHelper.flushAndClear()
+
+        // ── Phase 1: Alter Using ──
+        // Bob increases his plan from 40 to 60.
+        // Allowed because 100 stock - 40 Alice = 60 available.
+        usingService.updateTreatmentPlan(bob.id, drug.id, UsingUpdateDTO(plannedAmount = 60.0))
+        dbHelper.flushAndClear()
+
+        assertEquals(60.0, dbHelper.userPlan(bob.id, drug.id)!!, 0.001, "Bob's plan updated to 60")
+        assertEquals(40.0, dbHelper.userPlan(alice.id, drug.id)!!, 0.001, "Alice's plan unchanged at 40")
+
+        // ── Phase 2: Alter Drug (The Spill) ──
+        // Alice updates the drug quantity from 100 to 50.
+        // This MUST trigger `handleQuantityReduction`. Factor = 50 / 100 = 0.5.
+        val updateDrugDto = DrugUpdateDTO(quantity = 50.0)
+        drugService.update(drug.id, updateDrugDto, alice.id)
+        dbHelper.flushAndClear()
+
+        assertEquals(50.0, dbHelper.drugQuantity(drug.id)!!, 0.001, "Drug quantity updated to 50")
+        assertEquals(20.0, dbHelper.userPlan(alice.id, drug.id)!!, 0.001, "Alice scaled down (40 -> 20)")
+        assertEquals(30.0, dbHelper.userPlan(bob.id, drug.id)!!, 0.001, "Bob scaled down (60 -> 30)")
+
+        // ── Phase 3: Move Drug ──
+        // Alice moves the drug to targetKit (where Bob has no access).
+        medKitDrugServices.moveDrug(drug.id, targetKit.id, alice.id)
+        dbHelper.flushAndClear()
+
+        val movedDrug = drugService.findById(drug.id)
+        assertEquals(targetKit.id, movedDrug.medKit.id, "Drug successfully moved to targetKit")
+
+        // The ultimate security check: Bob's plan must be gone
+        assertNull(dbHelper.userPlan(bob.id, drug.id), "Bob's plan MUST be stripped due to lost access")
+        assertEquals(20.0, dbHelper.userPlan(alice.id, drug.id)!!, 0.001, "Alice's plan remains intact")
+
+        // ── Phase 4: Privacy-by-Default Deletion ──
+        // Alice deletes the drug completely.
+        drugService.delete(drug.id, alice.id)
+        dbHelper.flushAndClear()
+
+        // Verify absolute destruction
+        assertNull(dbHelper.drugQuantity(drug.id), "Drug record completely purged")
+        assertNull(dbHelper.userPlan(alice.id, drug.id), "Alice's plan completely purged along with the drug")
+
+        println("✅ Story 18 passed: Updates, dynamic scaling, access stripping on move, and total deletion worked perfectly.")
+    }
+
+    private fun createTestUser(name: String): User {
+        // Using repository directly to bypass any complex auth logic in UserService if necessary
+        return userRepository.save(User(id = UUID.randomUUID(), hashedKey = name))
+    }
+
+    @Test
+    fun `Story 19 - Roommate can move drug even without personal treatment plan`() {
+        // SETUP: Alice owns a kit, Bob is a roommate
+        val alice = createTestUser("alice")
+        val bob = createTestUser("bob")
+
+        val kitA = medKitService.createNew(alice.id)
+        val shareKey = medKitService.generateMedKitShareKey(kitA.id, alice.id)
+        medKitService.joinMedKitByKey(shareKey, bob.id)
+
+        // Alice creates a drug
+        val drug = drugService.create(DrugCreateDTO("Shared Meds", 10.0, "pcs", kitA.id), kitA, alice.id)
+
+        // Bob creates a private kit
+        val kitB = medKitService.createNew(bob.id)
+
+        // ACT: Bob moves the drug to his private kit
+        // This fails if the query uses an INNER JOIN on the 'usings' table
+        assertDoesNotThrow {
+            medKitDrugServices.moveDrug(drug.id, kitB.id, bob.id)
+        }
+
+        // VERIFY: Drug moved
+        val updatedDrug = drugRepository.findById(drug.id).get()
+        assertEquals(kitB.id, updatedDrug.medKit.id)
+    }
+
+    @Test
+    fun `Verify movement strips unauthorized usings`() {
+        // SETUP: Shared kit with Alice and Bob
+        val alice = createTestUser("alice")
+        val bob = createTestUser("bob")
+        val kitA = medKitService.createNew(alice.id)
+        medKitService.joinMedKitByKey(medKitService.generateMedKitShareKey(kitA.id, alice.id), bob.id)
+
+        val drug = drugService.create(DrugCreateDTO("Audit Meds", 10.0, "pcs", kitA.id), kitA, alice.id)
+
+        // Both have plans
+        usingService.createTreatmentPlan(alice.id, UsingCreateDTO(drug.id, 5.0))
+        usingService.createTreatmentPlan(bob.id, UsingCreateDTO(drug.id, 2.0))
+
+        // Alice has a private kit (Bob is NOT in this one)
+        val kitB = medKitService.createNew(alice.id)
+        entityManager.flush()
+        entityManager.clear()
+        // ACT: Move drug to private kit
+        medKitDrugServices.moveDrug(drug.id, kitB.id, alice.id)
+        entityManager.flush()
+        entityManager.clear()
+        // VERIFY: Bob's plan is purged, Alice's remains
+        val alicePlan = usingRepository.findAllByUserIdWithDrug(alice.id).find { it.drug.id == drug.id }
+        val bobPlan = usingRepository.findAllByUserIdWithDrug(bob.id).find { it.drug.id == drug.id }
+        assertNotNull(alicePlan, "Alice should keep her plan")
+        assertNull(bobPlan, "Bob's plan must be deleted because he lost access to the drug")
+    }
+
+    @Test
+    fun `Verify drug migration during MedKit deletion`() {
+        // SETUP: Alice has Kit A and Kit B
+        val alice = createTestUser("alice")
+        val kitA = medKitService.createNew(alice.id)
+        val kitB = medKitService.createNew(alice.id)
+        entityManager.flush()
+        entityManager.clear()
+        val drug =
+            medKitDrugServices.createDrugInMedkit(DrugCreateDTO("Migrating Meds", 10.0, "pcs", kitA.id), alice.id)
+
+        // ACT: Delete Kit A and migrate drugs to Kit B
+        entityManager.flush()
+        entityManager.clear()
+        medKitDrugServices.delete(kitA.id, alice.id, kitB.id)
+        entityManager.flush()
+        entityManager.clear()
+        // VERIFY: Kit A is gone, but the drug survives in Kit B
+        val survivingDrug = drugRepository.findById(drug.id).orElse(null)
+
+        assertNotNull(survivingDrug, "Drug should not have been deleted")
+        assertEquals(kitB.id, survivingDrug.medKit.id, "Drug should be re-parented to Kit B")
     }
 }

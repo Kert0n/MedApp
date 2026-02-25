@@ -12,11 +12,10 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
-import org.kert0n.medappserver.services.MedKitDrugServices
-import org.kert0n.medappserver.services.DrugService
-import org.kert0n.medappserver.services.UsingService
-import org.kert0n.medappserver.services.VidalDrugService
-import org.kert0n.medappserver.services.userId
+import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
+import org.kert0n.medappserver.services.models.DrugService
+import org.kert0n.medappserver.services.models.VidalDrugService
+import org.kert0n.medappserver.services.models.userId
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -116,8 +115,7 @@ class DrugController(
     ): QuantityInfo {
         logger.debug("GET /drug/quantity/{} by user {}", id, authentication.userId)
         val drug = drugService.findByIdForUser(id, authentication.userId)
-        val planned = drugService.getPlannedQuantity(id)
-        return QuantityInfo(drug.quantity, planned, drug.quantity - planned)
+        return QuantityInfo(drug.quantity, drug.totalPlannedAmount, drug.quantity - drug.totalPlannedAmount)
     }
 
     @PutMapping("/consume/{id}")
@@ -136,10 +134,10 @@ class DrugController(
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
         @SwaggerRequestBody(description = "Consumption details")
         @Valid @RequestBody consumeRequest: ConsumeRequest
-    ): DrugDTO {
+    ): DrugDTO? {
         logger.debug("PUT /drug/consume/{} by user {}, quantity: {}", id, authentication.userId, consumeRequest.quantity)
         val drug = drugService.consumeDrug(id, consumeRequest.quantity, authentication.userId)
-        return drugService.toDrugDTO(drug)
+        return if (drug!=null) drugService.toDrugDTO(drug) else null
     }
 
     @PutMapping("/move/{id}")

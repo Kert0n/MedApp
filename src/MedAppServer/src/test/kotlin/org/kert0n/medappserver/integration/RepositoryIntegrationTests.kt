@@ -3,13 +3,20 @@ package org.kert0n.medappserver.integration
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.db.model.*
-import org.kert0n.medappserver.db.repository.*
+import org.kert0n.medappserver.db.repository.DrugRepository
+import org.kert0n.medappserver.db.repository.MedKitRepository
+import org.kert0n.medappserver.db.repository.UserRepository
+import org.kert0n.medappserver.db.repository.UsingRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -162,9 +169,7 @@ class RepositoryIntegrationTests {
         usingRepository.save(using2)
         entityManager.flush()
         entityManager.clear()
-
-        val sum = drugRepository.sumPlannedAmount(drug.id)
-        assertEquals(50.0, sum)
+        assertEquals(50.0, drugRepository.findByIdOrNull(drug.id)?.totalPlannedAmount)
     }
 
     @Test
@@ -175,8 +180,7 @@ class RepositoryIntegrationTests {
         entityManager.flush()
         entityManager.clear()
 
-        val sum = drugRepository.sumPlannedAmount(drug.id)
-        assertEquals(0.0, sum)
+        assertEquals(0.0, drug.totalPlannedAmount)
     }
 
     // === MedKitRepository Tests ===
@@ -189,7 +193,7 @@ class RepositoryIntegrationTests {
         entityManager.flush()
         entityManager.clear()
 
-        val medKits = medKitRepository.findByUsersId(user.id)
+        val medKits = medKitRepository.findByUserId(user.id)
         assertEquals(2, medKits.size)
     }
 
@@ -198,7 +202,7 @@ class RepositoryIntegrationTests {
         val user = createUser()
         entityManager.flush()
 
-        val medKits = medKitRepository.findByUsersId(user.id)
+        val medKits = medKitRepository.findByUserId(user.id)
         assertTrue(medKits.isEmpty())
     }
 
@@ -267,7 +271,7 @@ class RepositoryIntegrationTests {
         entityManager.flush()
         entityManager.clear()
 
-        val users = userRepository.findByMedKitsId(medKit.id)
+        val users = userRepository.findAllByMedKitsId(medKit.id)
         assertEquals(2, users.size)
     }
 
@@ -324,7 +328,7 @@ class RepositoryIntegrationTests {
         entityManager.flush()
         entityManager.clear()
 
-        val usings = usingRepository.findAllByUserId(user.id)
+        val usings = usingRepository.findAllByUsingKeyUserId(user.id)
         assertEquals(2, usings.size)
     }
 
@@ -343,7 +347,7 @@ class RepositoryIntegrationTests {
         entityManager.flush()
         entityManager.clear()
 
-        val usings = usingRepository.findAllByDrugId(drug.id)
+        val usings = usingRepository.findAllByUsingKeyDrugId(drug.id)
         assertEquals(2, usings.size)
     }
 

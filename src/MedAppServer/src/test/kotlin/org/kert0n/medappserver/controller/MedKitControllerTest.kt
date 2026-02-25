@@ -2,9 +2,9 @@ package org.kert0n.medappserver.controller
 
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.kert0n.medappserver.services.MedKitDrugServices
+import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
 import org.kert0n.medappserver.db.model.MedKit
-import org.kert0n.medappserver.services.MedKitService
+import org.kert0n.medappserver.services.models.MedKitService
 import org.mockito.kotlin.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -99,9 +99,9 @@ class MedKitControllerTest() {
 
     @Test
     fun `GET all medkits - returns summary list`() {
-        val summaries = listOf(
-            Triple(medKitId, 2, 5),
-            Triple(UUID.randomUUID(), 1, 3)
+        val summaries = setOf(
+            MedKitSummaryDTO(medKitId, 2, 5),
+            MedKitSummaryDTO(UUID.randomUUID(), 1, 3)
         )
         whenever(medKitService.findMedKitSummaries(userId)).thenReturn(summaries)
 
