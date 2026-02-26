@@ -14,11 +14,7 @@ import org.kert0n.medappserver.services.security.SecurityService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
 import java.util.*
 
@@ -29,7 +25,7 @@ class AuthController(
     @Value($$"${registration.secret}") private val registrationSecret: String,
     private val userService: UserService,
     private val securityService: SecurityService
-    ) {
+) {
 
 
     @Schema(description = "Registration response with generated credentials")
@@ -46,15 +42,17 @@ class AuthController(
         description = "Creates a new user and returns generated credentials.",
         security = []
     )
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "User registered",
-            content = [Content(schema = Schema(implementation = RegisterResponse::class))]
-        ),
-        ApiResponse(responseCode = "403", description = "Invalid registration secret", content = [Content()]),
-        ApiResponse(responseCode = "504", description = "Too many registration attempts", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "User registered",
+                content = [Content(schema = Schema(implementation = RegisterResponse::class))]
+            ),
+            ApiResponse(responseCode = "403", description = "Invalid registration secret", content = [Content()]),
+            ApiResponse(responseCode = "504", description = "Too many registration attempts", content = [Content()])
+        ]
+    )
     fun register(
         request: HttpServletRequest,
         @Parameter(description = "Shared registration secret", required = true, example = "dev-secret")
@@ -80,14 +78,16 @@ class AuthController(
         description = "Uses HTTP Basic authentication and returns a JWT access token.",
         security = []
     )
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "JWT token issued",
-            content = [Content(schema = Schema(implementation = String::class))]
-        ),
-        ApiResponse(responseCode = "401", description = "Invalid credentials", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "JWT token issued",
+                content = [Content(schema = Schema(implementation = String::class))]
+            ),
+            ApiResponse(responseCode = "401", description = "Invalid credentials", content = [Content()])
+        ]
+    )
     fun login(authentication: Authentication): String =
         securityService.generateToken(authentication.principal as User)
 

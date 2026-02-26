@@ -21,11 +21,16 @@ import kotlin.test.assertNotNull
 @Transactional
 class DrugServiceTest {
 
-    @Autowired private lateinit var drugService: DrugService
-    @Autowired private lateinit var medKitService: MedKitService
-    @Autowired private lateinit var usingService: UsingService
-    @Autowired private lateinit var drugRepository: DrugRepository
-    @Autowired private lateinit var dbHelper: DatabaseTestHelper
+    @Autowired
+    private lateinit var drugService: DrugService
+    @Autowired
+    private lateinit var medKitService: MedKitService
+    @Autowired
+    private lateinit var usingService: UsingService
+    @Autowired
+    private lateinit var drugRepository: DrugRepository
+    @Autowired
+    private lateinit var dbHelper: DatabaseTestHelper
 
     // ── findById ──
 

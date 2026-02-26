@@ -12,7 +12,7 @@ import java.util.*
         columnNames = ["name"]
     )]
 )
-open class FormType (
+open class FormType(
     @Id
     @Column(name = "id", nullable = false)
     open var id: UUID = UUID.randomUUID(),
@@ -22,7 +22,7 @@ open class FormType (
     @Column(name = "name", nullable = false, length = 100)
     open var name: String
 
-    ) {
+) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

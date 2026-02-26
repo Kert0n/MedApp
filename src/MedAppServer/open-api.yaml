@@ -7,7 +7,7 @@ servers:
   - url: http://localhost:8080
     description: Generated server url
 security:
-  - Bearer Authentication: []
+  - Bearer Authentication: [ ]
 tags:
   - name: Drug Management
     description: APIs for managing drugs in medicine kits

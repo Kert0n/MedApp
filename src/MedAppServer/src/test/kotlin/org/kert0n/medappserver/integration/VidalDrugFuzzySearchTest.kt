@@ -1,5 +1,6 @@
 package org.kert0n.medappserver.integration
 
+import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.TestcontainersConfiguration
@@ -11,10 +12,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.TestPropertySource
-import jakarta.persistence.EntityManager
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * Integration tests for VidalDrug fuzzy search.
@@ -123,7 +125,10 @@ class VidalDrugFuzzySearchTest {
     @Test
     fun `fuzzySearchByName uses trigram similarity for fuzzy matches`() {
         val results = vidalDrugRepository.fuzzySearchByName("Аспирн", 10)
-        assertTrue(results.any { it.name == "Аспирин" }, "Trigram similarity should find 'Аспирин' even with typo 'Аспирн'")
+        assertTrue(
+            results.any { it.name == "Аспирин" },
+            "Trigram similarity should find 'Аспирин' even with typo 'Аспирн'"
+        )
     }
 
     @Test

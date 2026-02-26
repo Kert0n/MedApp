@@ -6,21 +6,25 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.util.*
 
-interface UserRepository: JpaRepository<User, UUID> {
+interface UserRepository : JpaRepository<User, UUID> {
 
     fun findAllByMedKitsId(@Param("medId") medId: UUID): Set<User>
-    
-    @Query("""
+
+    @Query(
+        """
         SELECT u FROM User u
         JOIN u.usings us
         WHERE us.drug.id = :drugId
-    """)
+    """
+    )
     fun findByUsingsDrugId(@Param("drugId") drugId: UUID): Set<User>
 
-    @Query("""
+    @Query(
+        """
         SELECT u FROM User u
         LEFT JOIN FETCH u.medKits
         WHERE u.id = :id
-    """)
+    """
+    )
     fun findByIdWithMedKits(@Param("id") id: UUID): User?
 }

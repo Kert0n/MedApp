@@ -45,6 +45,7 @@ class SecurityConfiguration(
     fun passwordEncoder(): PasswordEncoder {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder()
     }
+
     @Bean
     fun filterChain(httpSecurity: HttpSecurity): SecurityFilterChain {
         return httpSecurity

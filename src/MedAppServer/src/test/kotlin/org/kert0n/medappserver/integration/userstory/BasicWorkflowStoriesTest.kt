@@ -15,7 +15,10 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -104,7 +107,7 @@ class BasicWorkflowStoriesTest {
 
         val drugs = drugRepository.findAllByMedKitId(homeMedkit.id)
         assertEquals(2, drugs.size, "Should have 2 drugs in medkit")
-        
+
         println("✅ Story 1 passed: Anna successfully created medkit and managed drugs")
     }
 
@@ -119,7 +122,7 @@ class BasicWorkflowStoriesTest {
         val anna = User(id = UUID.randomUUID(), hashedKey = "anna_${UUID.randomUUID()}")
         userRepository.save(anna)
         val medkit = medKitService.createNew(anna.id)
-        
+
         val vitamins = Drug(
             id = UUID.randomUUID(),
             name = "Vitamin C",
@@ -149,7 +152,7 @@ class BasicWorkflowStoriesTest {
         // Both can see it
         val annaMedkits = medKitService.findAllByUser(anna.id)
         val bobMedkits = medKitService.findAllByUser(bob.id)
-        
+
         assertEquals(1, annaMedkits.size)
         assertEquals(1, bobMedkits.size)
         assertEquals(annaMedkits[0].id, bobMedkits[0].id, "Should be the same medkit")
@@ -158,7 +161,7 @@ class BasicWorkflowStoriesTest {
         val sharedMedkit = medKitRepository.findById(medkit.id).orElse(null)
         assertNotNull(sharedMedkit)
         assertEquals(2, sharedMedkit.users.size, "Medkit should have 2 users")
-        
+
         println("✅ Story 2 passed: Anna successfully shared medkit with Bob")
     }
 
@@ -174,11 +177,11 @@ class BasicWorkflowStoriesTest {
         val bob = User(id = UUID.randomUUID(), hashedKey = "bob_${UUID.randomUUID()}")
         userRepository.save(anna)
         userRepository.save(bob)
-        
+
         val medkit = medKitService.createNew(anna.id)
         val shareKey = medKitService.generateMedKitShareKey(medkit.id, anna.id)
         medKitService.joinMedKitByKey(shareKey, bob.id)
-        
+
         val drug = Drug(
             id = UUID.randomUUID(),
             name = "Test Drug",
@@ -213,7 +216,7 @@ class BasicWorkflowStoriesTest {
         // Drug still exists
         val remainingDrug = drugRepository.findById(drug.id).orElse(null)
         assertNotNull(remainingDrug, "Drug should still exist")
-        
+
         println("✅ Story 3 passed: Bob left medkit, cleanup successful")
     }
 
@@ -280,10 +283,10 @@ class BasicWorkflowStoriesTest {
         // Old medkit should be gone
         val oldMedkitCheck = medKitRepository.findById(oldMedkit.id).orElse(null)
         assertNull(oldMedkitCheck, "Old medkit should be deleted")
-        
+
         // User should have only 1 medkit now
         assertEquals(1, medKitService.findAllByUser(user.id).size)
-        
+
         println("✅ Story 4 passed: Drugs successfully migrated to new medkit")
     }
 
@@ -296,7 +299,7 @@ class BasicWorkflowStoriesTest {
     fun `Story 5 - User consumes all available drug quantity`() {
         val user = User(id = UUID.randomUUID(), hashedKey = "user_${UUID.randomUUID()}")
         userRepository.save(user)
-        
+
         val medkit = medKitService.createNew(user.id)
         val drug = Drug(
             id = UUID.randomUUID(),
@@ -324,7 +327,7 @@ class BasicWorkflowStoriesTest {
         val updatedDrug = drugRepository.findById(drug.id).orElse(null)
         // Must be deleted
         assertNull(updatedDrug)
-        
+
         println("✅ Story 5 passed: All drug quantity consumed correctly")
     }
 }

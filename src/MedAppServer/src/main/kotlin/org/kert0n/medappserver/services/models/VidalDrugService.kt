@@ -9,7 +9,7 @@ import java.util.*
 class VidalDrugService(
     private val vidalDrugRepository: VidalDrugRepository
 ) {
-    
+
     fun fuzzySearchByName(searchTerm: String, limit: Int = 10): List<VidalDrug> {
         if (searchTerm.isBlank()) {
             return emptyList()
@@ -21,7 +21,7 @@ class VidalDrugService(
             .replace("_", "\\_")
         return vidalDrugRepository.fuzzySearchByName(sanitized, limit)
     }
-    
+
     fun findById(id: UUID): VidalDrug? {
         return vidalDrugRepository.findById(id).orElse(null)
     }

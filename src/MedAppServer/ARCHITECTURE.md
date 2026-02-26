@@ -2,38 +2,40 @@
 
 ## Обзор
 
-Серверная часть MedApp отвечает за синхронизацию общих аптечек, учет препаратов и выдачу каталога лекарств. Решение реализовано на **Spring Boot** и Kotlin с использованием JPA/Hibernate и PostgreSQL.
+Серверная часть MedApp отвечает за синхронизацию общих аптечек, учет препаратов и выдачу каталога лекарств. Решение
+реализовано на **Spring Boot** и Kotlin с использованием JPA/Hibernate и PostgreSQL.
 
 ## Компоненты
 
 - **Контроллеры** (`controller/`) — REST API:
-  - `AuthController`: регистрация и выдача JWT.
-  - `UserController`: полный снимок данных пользователя для синхронизации.
-  - `MedKitController`: управление аптечками и доступом.
-  - `DrugController`: CRUD для препаратов и поиск по каталогу.
-  - `MedKitDrugController`: Сервис для менеджмента связи препаратов и аптечек (перемещения, создания, удаления и т.п.).
-  - `UsingsController`: планы лечения и фиксация приема.
+    - `AuthController`: регистрация и выдача JWT.
+    - `UserController`: полный снимок данных пользователя для синхронизации.
+    - `MedKitController`: управление аптечками и доступом.
+    - `DrugController`: CRUD для препаратов и поиск по каталогу.
+    - `MedKitDrugController`: Сервис для менеджмента связи препаратов и аптечек (перемещения, создания, удаления и
+      т.п.).
+    - `UsingsController`: планы лечения и фиксация приема.
 - **Сервисы** (`services/`) — бизнес-логика:
-  - `MedKitService`, `DrugService`, `UsingService` — core-операции.
-  - `VidalDrugService` — поиск по справочнику.
-  - `SecurityService` — генерация ключей, JWT, rate-limit регистрации.
-  - `CacheService` — кэш share-ключей и регистраций.
+    - `MedKitService`, `DrugService`, `UsingService` — core-операции.
+    - `VidalDrugService` — поиск по справочнику.
+    - `SecurityService` — генерация ключей, JWT, rate-limit регистрации.
+    - `CacheService` — кэш share-ключей и регистраций.
 - **Хранилище** (`db/`) — сущности JPA и репозитории.
 
 ## Модель данных
 
-| Сущность | Назначение | Ключевые поля |
-| --- | --- | --- |
-| **User** | Пользователь без персональных данных | `id`, `hashedKey` |
-| **MedKit** | Общая аптечка | `id`, связи с пользователями и препаратами |
-| **Drug** | Препарат пользователя | `name`, `quantity`, `quantityUnit`, `formType`, `category`, `manufacturer`, `country`, `description`, `medKit` |
-| **Using** | План лечения по препарату | `plannedAmount`, `createdAt`, `lastModified`, связи с `User` и `Drug` |
-| **VidalDrug** | Каталог препаратов | `name`, `formType`,`quantity`, `quantityUnit`, `manufacturer`, `category`, `description` |
+| Сущность      | Назначение                           | Ключевые поля                                                                                                  |
+|---------------|--------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| **User**      | Пользователь без персональных данных | `id`, `hashedKey`                                                                                              |
+| **MedKit**    | Общая аптечка                        | `id`, связи с пользователями и препаратами                                                                     |
+| **Drug**      | Препарат пользователя                | `name`, `quantity`, `quantityUnit`, `formType`, `category`, `manufacturer`, `country`, `description`, `medKit` |
+| **Using**     | План лечения по препарату            | `plannedAmount`, `createdAt`, `lastModified`, связи с `User` и `Drug`                                          |
+| **VidalDrug** | Каталог препаратов                   | `name`, `formType`,`quantity`, `quantityUnit`, `manufacturer`, `category`, `description`                       |
 
 ## Безопасность и приватность
 
-- Сервер не хранит персональные данные, только технические идентификаторы. IP адреса хранятся только в кеше 
-в хешированном виде
+- Сервер не хранит персональные данные, только технические идентификаторы. IP адреса хранятся только в кеше
+  в хешированном виде
 - JWT с ограниченным сроком действия.
 - Share-ключи кэшируются в хешированном виде и имеют TTL.
 - Логи пишутся только в stdout.

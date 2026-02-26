@@ -6,9 +6,9 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
 import org.kert0n.medappserver.services.models.MedKitService
 import org.kert0n.medappserver.services.models.userId
+import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
 import org.slf4j.LoggerFactory
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.GetMapping
@@ -31,17 +31,20 @@ class UserController(
         summary = "Get user snapshot",
         description = "Returns user identifier with all accessible medkits and drugs for sync."
     )
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "User snapshot retrieved",
-            content = [Content(schema = Schema(implementation = UserDto::class))]
-        ),
-        ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "User snapshot retrieved",
+                content = [Content(schema = Schema(implementation = UserDto::class))]
+            ),
+            ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
+        ]
+    )
     fun getAllDataForUser(authentication: Authentication): UserDto {
         logger.debug("GET /user by user {}", authentication.userId)
-        val medKitDTOs = medKitService.findAllByUser(authentication.userId).map { medKitDrugServices.toMedKitDTO(it) }.toSet()
+        val medKitDTOs =
+            medKitService.findAllByUser(authentication.userId).map { medKitDrugServices.toMedKitDTO(it) }.toSet()
         return UserDto(
             id = authentication.userId,
             medKits = medKitDTOs

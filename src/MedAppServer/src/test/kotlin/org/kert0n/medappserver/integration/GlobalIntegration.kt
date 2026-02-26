@@ -3,8 +3,6 @@ package org.kert0n.medappserver.integration
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.controller.UsingCreateDTO
-import org.kert0n.medappserver.db.model.Drug
-import org.kert0n.medappserver.db.model.User
 import org.kert0n.medappserver.db.repository.DrugRepository
 import org.kert0n.medappserver.db.repository.UserRepository
 import org.kert0n.medappserver.db.repository.UsingRepository
@@ -14,10 +12,8 @@ import org.kert0n.medappserver.services.models.UsingService
 import org.kert0n.medappserver.testutil.DatabaseTestHelper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
-import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -46,20 +42,27 @@ class PlannedQuantityTrackingTests {
 
     @Autowired
     private lateinit var userRepository: UserRepository
+
     @Autowired
     private lateinit var drugRepository: DrugRepository
+
     @Autowired
     private lateinit var usingRepository: UsingRepository
+
     @Autowired
     private lateinit var entityManager: EntityManager
+
     @Autowired
     private lateinit var drugService: DrugService
+
     @Autowired
     private lateinit var medKitService: MedKitService
+
     @Autowired
     private lateinit var usingService: UsingService
 
-    @Autowired private lateinit var dbHelper: DatabaseTestHelper
+    @Autowired
+    private lateinit var dbHelper: DatabaseTestHelper
 
     // ──────────────────────────────────────────────────────────
     // Test 1 — Planned intake with slack: no scaling should ever occur

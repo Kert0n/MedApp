@@ -30,9 +30,12 @@ class UserService(
     override fun loadUserByUsername(username: String): UserDetails =
         userRepository.findByIdOrNull(UUID.fromString(username)) ?: throw UsernameNotFoundException(username)
 
-    fun findById(id: UUID): User = userRepository.findByIdOrNull(id)?:throw ResponseStatusException(HttpStatus.NOT_FOUND,"User with ID $id not found")
-    fun findAllByDrug(drugId: UUID): Set<User> = userRepository.findByUsingsDrugId(drugId)
+    fun findById(id: UUID): User = userRepository.findByIdOrNull(id) ?: throw ResponseStatusException(
+        HttpStatus.NOT_FOUND,
+        "User with ID $id not found"
+    )
 
+    fun findAllByDrug(drugId: UUID): Set<User> = userRepository.findByUsingsDrugId(drugId)
 
 
 }

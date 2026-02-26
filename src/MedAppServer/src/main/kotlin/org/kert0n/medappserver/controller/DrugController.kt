@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
-import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -12,15 +11,16 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
-import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
 import org.kert0n.medappserver.services.models.DrugService
 import org.kert0n.medappserver.services.models.VidalDrugService
 import org.kert0n.medappserver.services.models.userId
+import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
 import java.util.*
+import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
 @RequestMapping("/drug")
@@ -35,10 +35,12 @@ class DrugController(
 
     @GetMapping("/{id}")
     @Operation(summary = "Get drug by ID", description = "Retrieves a drug by its ID if the user has access")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Drug found"),
-        ApiResponse(responseCode = "404", description = "Drug not found or access denied", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Drug found"),
+            ApiResponse(responseCode = "404", description = "Drug not found or access denied", content = [Content()])
+        ]
+    )
     fun getDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID
@@ -51,11 +53,17 @@ class DrugController(
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new drug", description = "Creates a new drug in a medicine kit")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "201", description = "Drug created successfully"),
-        ApiResponse(responseCode = "400", description = "Invalid input", content = [Content()]),
-        ApiResponse(responseCode = "403", description = "User does not have access to the medicine kit", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "201", description = "Drug created successfully"),
+            ApiResponse(responseCode = "400", description = "Invalid input", content = [Content()]),
+            ApiResponse(
+                responseCode = "403",
+                description = "User does not have access to the medicine kit",
+                content = [Content()]
+            )
+        ]
+    )
     fun createDrug(
         authentication: Authentication,
         @SwaggerRequestBody(description = "Drug details to create")
@@ -68,11 +76,13 @@ class DrugController(
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a drug", description = "Updates an existing drug")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Drug updated successfully"),
-        ApiResponse(responseCode = "400", description = "Invalid input", content = [Content()]),
-        ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Drug updated successfully"),
+            ApiResponse(responseCode = "400", description = "Invalid input", content = [Content()]),
+            ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
+        ]
+    )
     fun updateDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
@@ -87,10 +97,12 @@ class DrugController(
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete a drug", description = "Deletes a drug from the medicine kit")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "204", description = "Drug deleted successfully"),
-        ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "204", description = "Drug deleted successfully"),
+            ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
+        ]
+    )
     fun deleteDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID
@@ -101,14 +113,16 @@ class DrugController(
 
     @GetMapping("/quantity/{id}")
     @Operation(summary = "Get drug quantity info", description = "Returns actual, planned, and available quantities")
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "Quantity info retrieved",
-            content = [Content(schema = Schema(implementation = QuantityInfo::class))]
-        ),
-        ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Quantity info retrieved",
+                content = [Content(schema = Schema(implementation = QuantityInfo::class))]
+            ),
+            ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
+        ]
+    )
     fun getDrugQuantityInfo(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID
@@ -120,37 +134,46 @@ class DrugController(
 
     @PutMapping("/consume/{id}")
     @Operation(summary = "Consume drug", description = "Reduces drug quantity by the consumed amount")
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "Drug consumed",
-            content = [Content(schema = Schema(implementation = DrugDTO::class))]
-        ),
-        ApiResponse(responseCode = "400", description = "Invalid quantity", content = [Content()]),
-        ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Drug consumed",
+                content = [Content(schema = Schema(implementation = DrugDTO::class))]
+            ),
+            ApiResponse(responseCode = "400", description = "Invalid quantity", content = [Content()]),
+            ApiResponse(responseCode = "404", description = "Drug not found", content = [Content()])
+        ]
+    )
     fun consumeDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
         @SwaggerRequestBody(description = "Consumption details")
         @Valid @RequestBody consumeRequest: ConsumeRequest
     ): DrugDTO? {
-        logger.debug("PUT /drug/consume/{} by user {}, quantity: {}", id, authentication.userId, consumeRequest.quantity)
+        logger.debug(
+            "PUT /drug/consume/{} by user {}, quantity: {}",
+            id,
+            authentication.userId,
+            consumeRequest.quantity
+        )
         val drug = drugService.consumeDrug(id, consumeRequest.quantity, authentication.userId)
-        return if (drug!=null) drugService.toDrugDTO(drug) else null
+        return if (drug != null) drugService.toDrugDTO(drug) else null
     }
 
     @PutMapping("/move/{id}")
     @Operation(summary = "Move drug to another medicine kit", description = "Transfers a drug between medicine kits")
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "Drug moved",
-            content = [Content(schema = Schema(implementation = DrugDTO::class))]
-        ),
-        ApiResponse(responseCode = "400", description = "Invalid target medkit", content = [Content()]),
-        ApiResponse(responseCode = "404", description = "Drug or medkit not found", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Drug moved",
+                content = [Content(schema = Schema(implementation = DrugDTO::class))]
+            ),
+            ApiResponse(responseCode = "400", description = "Invalid target medkit", content = [Content()]),
+            ApiResponse(responseCode = "404", description = "Drug or medkit not found", content = [Content()])
+        ]
+    )
     fun moveDrug(
         authentication: Authentication,
         @Parameter(description = "Drug ID") @PathVariable id: UUID,
@@ -164,20 +187,27 @@ class DrugController(
 
     @GetMapping("/template/search")
     @Operation(summary = "Search drug templates", description = "Fuzzy search for drug templates in the database")
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "Templates found",
-            content = [Content(schema = Schema(implementation = DrugTemplateDTO::class))]
-        ),
-        ApiResponse(responseCode = "400", description = "Invalid search term", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Templates found",
+                content = [Content(schema = Schema(implementation = DrugTemplateDTO::class))]
+            ),
+            ApiResponse(responseCode = "400", description = "Invalid search term", content = [Content()])
+        ]
+    )
     fun searchDrugTemplates(
         authentication: Authentication,
         @Parameter(description = "Search term") @RequestParam searchTerm: String,
         @Parameter(description = "Maximum results") @RequestParam(defaultValue = "10") limit: Int
     ): List<DrugTemplateDTO> {
-        logger.debug("GET /drug/template/search?searchTerm={}&limit={} by user {}", searchTerm, limit, authentication.userId)
+        logger.debug(
+            "GET /drug/template/search?searchTerm={}&limit={} by user {}",
+            searchTerm,
+            limit,
+            authentication.userId
+        )
         return vidalDrugService.fuzzySearchByName(searchTerm, limit).map { vd ->
             DrugTemplateDTO(
                 id = vd.id,
@@ -194,14 +224,16 @@ class DrugController(
 
     @GetMapping("/template/{id}")
     @Operation(summary = "Get drug template by ID", description = "Retrieves a drug template from the database")
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "Template retrieved",
-            content = [Content(schema = Schema(implementation = DrugTemplateDTO::class))]
-        ),
-        ApiResponse(responseCode = "404", description = "Template not found", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Template retrieved",
+                content = [Content(schema = Schema(implementation = DrugTemplateDTO::class))]
+            ),
+            ApiResponse(responseCode = "404", description = "Template not found", content = [Content()])
+        ]
+    )
     fun getDrugTemplate(
         authentication: Authentication,
         @Parameter(description = "Template ID")
@@ -268,6 +300,7 @@ data class DrugTemplateDTO(
     @Schema(description = "Description")
     val description: String?
 )
+
 @Schema(description = "Drug information with planned quantity")
 data class DrugDTO(
     @Schema(description = "Drug ID")

@@ -34,7 +34,6 @@ open class MedKitService(
     }
 
 
-
     @Transactional(readOnly = true)
     fun findById(medKitId: UUID): MedKit {
         logger.debug("Finding medkit by ID: {}", medKitId)
@@ -111,8 +110,6 @@ open class MedKitService(
             medKitRepository.save(medKit)
         }
     }
-
-
 
 
 }

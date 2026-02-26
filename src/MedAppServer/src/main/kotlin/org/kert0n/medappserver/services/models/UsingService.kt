@@ -62,19 +62,23 @@ class UsingService(
         if (usingRepository.findByUserIdAndDrugId(userId, createDTO.drugId) != null) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "using already exists for this user and drug")
         }
-        
+
         // Validate planned quantity against currently reserved amounts to avoid overbooking stock.
         val currentPlanned = drug.totalPlannedAmount
         val availableQuantity = drug.quantity - currentPlanned
-        
+
         if (createDTO.plannedAmount > availableQuantity) {
-            logger.warn("Requested planned amount {} exceeds available quantity {}", createDTO.plannedAmount, availableQuantity)
+            logger.warn(
+                "Requested planned amount {} exceeds available quantity {}",
+                createDTO.plannedAmount,
+                availableQuantity
+            )
             throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST, 
+                HttpStatus.BAD_REQUEST,
                 "Insufficient quantity available. Available: $availableQuantity, Requested: ${createDTO.plannedAmount}"
             )
         }
-        
+
         val using = Using(
             usingKey = UsingKey(userId, createDTO.drugId),
             user = user,
@@ -83,7 +87,7 @@ class UsingService(
             lastModified = Instant.now(),
             createdAt = Instant.now()
         )
-        
+
         return usingRepository.save(using)
     }
 
@@ -97,18 +101,22 @@ class UsingService(
         // Exclude the current plan when checking availability.
         val otherPlanned = using.drug.totalPlannedAmount - using.plannedAmount
         val availableQuantity = using.drug.quantity - otherPlanned
-        
+
         if (updateDTO.plannedAmount > availableQuantity) {
-            logger.warn("Updated planned amount {} exceeds available quantity {}", updateDTO.plannedAmount, availableQuantity)
+            logger.warn(
+                "Updated planned amount {} exceeds available quantity {}",
+                updateDTO.plannedAmount,
+                availableQuantity
+            )
             throw ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
                 "Insufficient quantity available. Available: $availableQuantity, Requested: ${updateDTO.plannedAmount}"
             )
         }
-        
+
         using.plannedAmount = updateDTO.plannedAmount
         using.lastModified = Instant.now()
-        
+
         return usingRepository.save(using)
     }
 
@@ -119,7 +127,7 @@ class UsingService(
         // Check if consumed quantity exceeds planned amount
         if (quantityConsumed > using.plannedAmount) {
             throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST, 
+                HttpStatus.BAD_REQUEST,
                 "Consumed quantity exceeds planned amount. Planned: ${using.plannedAmount}, Consumed: $quantityConsumed"
             )
         }
@@ -141,7 +149,7 @@ class UsingService(
             return null
         }
         using.lastModified = Instant.now()
-        
+
         return usingRepository.save(using)
     }
 
@@ -152,7 +160,6 @@ class UsingService(
         val using = findByUserAndDrug(userId, drugId)
         usingRepository.delete(using)
     }
-
 
 
     @Transactional(readOnly = true)

@@ -70,10 +70,9 @@ open class VidalDrug(
     @Column(name = "description", length = Integer.MAX_VALUE)
     open var description: String? = null,
 
-    @Column(name = "otc",nullable = false)
+    @Column(name = "otc", nullable = false)
     @NotNull
     open var otc: Boolean
-
 
 
 ) {

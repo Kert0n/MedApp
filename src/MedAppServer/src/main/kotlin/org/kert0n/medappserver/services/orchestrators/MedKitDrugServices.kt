@@ -6,7 +6,6 @@ import org.kert0n.medappserver.db.model.Drug
 import org.kert0n.medappserver.db.model.MedKit
 import org.kert0n.medappserver.db.repository.DrugRepository
 import org.kert0n.medappserver.db.repository.MedKitRepository
-import org.kert0n.medappserver.db.repository.UsingRepository
 import org.kert0n.medappserver.services.models.DrugService
 import org.kert0n.medappserver.services.models.MedKitService
 import org.kert0n.medappserver.services.models.UserService

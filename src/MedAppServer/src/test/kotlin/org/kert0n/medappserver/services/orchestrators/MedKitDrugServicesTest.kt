@@ -27,13 +27,20 @@ import kotlin.test.assertNull
 @Transactional
 class MedKitDrugServicesTest {
 
-    @Autowired private lateinit var medKitDrugServices: MedKitDrugServices
-    @Autowired private lateinit var drugService: DrugService
-    @Autowired private lateinit var medKitService: MedKitService
-    @Autowired private lateinit var usingService: UsingService
-    @Autowired private lateinit var drugRepository: DrugRepository
-    @Autowired private lateinit var medKitRepository: MedKitRepository
-    @Autowired private lateinit var dbHelper: DatabaseTestHelper
+    @Autowired
+    private lateinit var medKitDrugServices: MedKitDrugServices
+    @Autowired
+    private lateinit var drugService: DrugService
+    @Autowired
+    private lateinit var medKitService: MedKitService
+    @Autowired
+    private lateinit var usingService: UsingService
+    @Autowired
+    private lateinit var drugRepository: DrugRepository
+    @Autowired
+    private lateinit var medKitRepository: MedKitRepository
+    @Autowired
+    private lateinit var dbHelper: DatabaseTestHelper
 
     // ── createDrugInMedkit ──
 

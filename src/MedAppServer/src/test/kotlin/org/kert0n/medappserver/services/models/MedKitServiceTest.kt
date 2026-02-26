@@ -10,21 +10,21 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.util.*
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
 class MedKitServiceTest {
 
-    @Autowired private lateinit var medKitService: MedKitService
-    @Autowired private lateinit var medKitRepository: MedKitRepository
-    @Autowired private lateinit var userService: UserService
-    @Autowired private lateinit var dbHelper: DatabaseTestHelper
+    @Autowired
+    private lateinit var medKitService: MedKitService
+    @Autowired
+    private lateinit var medKitRepository: MedKitRepository
+    @Autowired
+    private lateinit var userService: UserService
+    @Autowired
+    private lateinit var dbHelper: DatabaseTestHelper
 
     // ── createNew ──
 

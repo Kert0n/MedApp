@@ -23,7 +23,7 @@ class SecurityService(
     @Value($$"${authentication.termInMinutes}") private val authenticationTerm: Long,
     @Value($$"${registration.timeout.BanNumber}") private val registrationNumber: Long,
     private val successfulRegistrationsCache: Cache<String, Int>
-    ) {
+) {
 
     fun generateKey(size: Int) = Base64.encode(ByteArray(size).also { SecureRandom().nextBytes(it) })
     fun check(raw: String, hashedPassword: String): Boolean = passwordEncoder.matches(raw, hashedPassword)

@@ -20,7 +20,10 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.util.*
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -63,7 +66,7 @@ class TreatmentPlanStoriesTest {
     fun `Story 6 - User creates treatment plan and records intakes`() {
         val user = User(id = UUID.randomUUID(), hashedKey = "user_${UUID.randomUUID()}")
         userRepository.save(user)
-        
+
         val medkit = medKitService.createNew(user.id)
         val drug = Drug(
             id = UUID.randomUUID(),
@@ -106,7 +109,7 @@ class TreatmentPlanStoriesTest {
         val updatedDrug = drugRepository.findById(drug.id).orElse(null)
         assertNotNull(updatedDrug)
         assertEquals(90.0, updatedDrug.quantity, "Drug quantity should be 90 after 10 consumed")
-        
+
         println("✅ Story 6 passed: Treatment plan and intakes work correctly")
     }
 

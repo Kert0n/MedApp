@@ -10,9 +10,9 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
-import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
 import org.kert0n.medappserver.services.models.MedKitService
 import org.kert0n.medappserver.services.models.userId
+import org.kert0n.medappserver.services.orchestrators.MedKitDrugServices
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -49,14 +49,15 @@ class MedKitController(
     )
 
 
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new medkit", description = "Creates a new medkit for the authenticated user")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "201", description = "Medkit created successfully"),
-        ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "201", description = "Medkit created successfully"),
+            ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
+        ]
+    )
     fun createNew(authentication: Authentication): MedKitCreatedResponse {
         logger.debug("POST /med-kit by user {}", authentication.userId)
         val medKit = medKitService.createNew(authentication.userId)
@@ -65,10 +66,12 @@ class MedKitController(
 
     @GetMapping("/{id}")
     @Operation(summary = "Get medkit by ID", description = "Retrieves a medkit if the user has access")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Medkit found"),
-        ApiResponse(responseCode = "404", description = "Medkit not found or access denied", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Medkit found"),
+            ApiResponse(responseCode = "404", description = "Medkit not found or access denied", content = [Content()])
+        ]
+    )
     fun getMedKit(
         authentication: Authentication,
         @Parameter(description = "Medkit ID") @PathVariable id: UUID
@@ -80,14 +83,16 @@ class MedKitController(
 
     @GetMapping
     @Operation(summary = "Get all medkits", description = "Returns summary info for all medkits accessible to the user")
-    @ApiResponses(value = [
-        ApiResponse(
-            responseCode = "200",
-            description = "Medkits retrieved",
-            content = [Content(schema = Schema(implementation = MedKitSummaryDTO::class))]
-        ),
-        ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "Medkits retrieved",
+                content = [Content(schema = Schema(implementation = MedKitSummaryDTO::class))]
+            ),
+            ApiResponse(responseCode = "401", description = "Unauthorized", content = [Content()])
+        ]
+    )
     fun getAllMedKits(authentication: Authentication): Set<MedKitSummaryDTO> {
         logger.debug("GET /med-kit by user {}", authentication.userId)
         return medKitService.findMedKitSummaries(authentication.userId)
@@ -95,10 +100,12 @@ class MedKitController(
 
     @PostMapping("/{medKitId}/share")
     @Operation(summary = "Generate share key", description = "Generates a one-time share key for a medkit")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Share key generated"),
-        ApiResponse(responseCode = "404", description = "Medkit not found or access denied", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Share key generated"),
+            ApiResponse(responseCode = "404", description = "Medkit not found or access denied", content = [Content()])
+        ]
+    )
     fun generateKeyToMedKit(
         authentication: Authentication,
         @Parameter(description = "Medkit ID") @PathVariable medKitId: UUID
@@ -109,10 +116,12 @@ class MedKitController(
 
     @PostMapping("/join")
     @Operation(summary = "Join medkit by share key", description = "Joins an existing medkit using a share key")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Successfully joined medkit"),
-        ApiResponse(responseCode = "404", description = "Share key expired or invalid", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Successfully joined medkit"),
+            ApiResponse(responseCode = "404", description = "Share key expired or invalid", content = [Content()])
+        ]
+    )
     fun joinMedKitByKey(
         authentication: Authentication,
         @SwaggerRequestBody(description = "Join request")
@@ -126,10 +135,12 @@ class MedKitController(
     @DeleteMapping("/{id}/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Leave medkit", description = "Removes the authenticated user from the medkit")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "204", description = "User removed from medkit"),
-        ApiResponse(responseCode = "404", description = "Medkit not found", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "204", description = "User removed from medkit"),
+            ApiResponse(responseCode = "404", description = "Medkit not found", content = [Content()])
+        ]
+    )
     fun leaveMedKit(
         authentication: Authentication,
         @Parameter(description = "Medkit ID") @PathVariable id: UUID
@@ -141,10 +152,12 @@ class MedKitController(
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete medkit", description = "Deletes a medkit or removes the user if others remain")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "204", description = "Medkit deleted"),
-        ApiResponse(responseCode = "404", description = "Medkit not found", content = [Content()])
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "204", description = "Medkit deleted"),
+            ApiResponse(responseCode = "404", description = "Medkit not found", content = [Content()])
+        ]
+    )
     fun deleteMedKit(
         authentication: Authentication,
         @Parameter(description = "Medkit ID") @PathVariable id: UUID,
@@ -163,6 +176,7 @@ data class MedKitDTO(
     @Schema(description = "Drugs in medkit")
     val drugs: Set<DrugDTO>
 )
+
 data class MedKitSummaryDTO(
     @NotNull
     @Schema(description = "Medkit ID")

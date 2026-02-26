@@ -18,7 +18,7 @@ class UserBuilder {
     fun withId(id: UUID) = apply { this.id = id }
     fun withHashedKey(key: String) = apply { this.hashedKey = key }
     fun withMedKit(medKit: MedKit) = apply { this.medKits.add(medKit) }
-    
+
     fun build(): User {
         val user = User(id = id, hashedKey = hashedKey)
         user.medKits.addAll(medKits)
@@ -35,7 +35,7 @@ class MedKitBuilder {
     fun withId(id: UUID) = apply { this.id = id }
     fun withUser(user: User) = apply { this.users.add(user) }
     fun withDrug(drug: Drug) = apply { this.drugs.add(drug) }
-    
+
     fun build(): MedKit {
         val medKit = MedKit(id = id)
         medKit.users.addAll(users)
@@ -64,7 +64,7 @@ class DrugBuilder(private val medKit: MedKit) {
     fun withManufacturer(manufacturer: String?) = apply { this.manufacturer = manufacturer }
     fun withCountry(country: String?) = apply { this.country = country }
     fun withDescription(description: String?) = apply { this.description = description }
-    
+
     fun build(): Drug {
         return Drug(
             id = id,
@@ -85,7 +85,7 @@ class UsingBuilder(private val user: User, private val drug: Drug) {
     private var plannedAmount: Double = 30.0
 
     fun withPlannedAmount(amount: Double) = apply { this.plannedAmount = amount }
-    
+
     fun build(): Using {
         return Using(
             usingKey = UsingKey(userId = user.id, drugId = drug.id),
@@ -116,7 +116,7 @@ class DrugCreateDTOBuilder {
     fun withManufacturer(manufacturer: String?) = apply { this.manufacturer = manufacturer }
     fun withCountry(country: String?) = apply { this.country = country }
     fun withDescription(description: String?) = apply { this.description = description }
-    
+
     fun build(): DrugCreateDTO {
         return DrugCreateDTO(
             name = name,
@@ -150,7 +150,7 @@ class DrugUpdateDTOBuilder {
     fun withManufacturer(manufacturer: String) = apply { this.manufacturer = manufacturer }
     fun withCountry(country: String) = apply { this.country = country }
     fun withDescription(description: String) = apply { this.description = description }
-    
+
     fun build(): DrugUpdateDTO {
         return DrugUpdateDTO(
             name = name,

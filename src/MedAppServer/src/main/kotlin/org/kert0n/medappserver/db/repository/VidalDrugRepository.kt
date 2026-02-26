@@ -7,7 +7,7 @@ import org.springframework.data.repository.query.Param
 import java.util.*
 
 interface VidalDrugRepository : JpaRepository<VidalDrug, UUID> {
-    
+
     // Native PostgreSQL fuzzy search using pg_trgm trigram similarity + ILIKE
     // Similarity threshold 0.3 is the pg_trgm default for the % operator
     @Query(

@@ -24,14 +24,18 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
 class ComplexWorkflowStoriesTest {
 
-    @Autowired private lateinit var dbHelper: DatabaseTestHelper
+    @Autowired
+    private lateinit var dbHelper: DatabaseTestHelper
+
     @Autowired
     private lateinit var userRepository: UserRepository
 
@@ -223,6 +227,7 @@ class ComplexWorkflowStoriesTest {
 
         println("✅ Story 17 passed: The Roommate Saga completed without a single JPA integrity violation")
     }
+
     @Test
     fun `Story 18 - Full Lifecycle Alterations, Movement, and Deletion`() {
         // ── Setup ──

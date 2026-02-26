@@ -46,6 +46,7 @@ class DrugService(
         return drugRepository.findByIdAndMedKitUsersIdForUpdate(drugId, userId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Drug not found or access denied")
     }
+
     @Transactional(readOnly = true)
     fun findAllByMedKit(medKitId: UUID): List<Drug> {
         logger.debug("Finding all drugs for medkit: {}", medKitId)
@@ -60,7 +61,7 @@ class DrugService(
 
 
     @Transactional
-    fun create(createDTO: DrugCreateDTO,medKit: MedKit, userId: UUID): Drug {
+    fun create(createDTO: DrugCreateDTO, medKit: MedKit, userId: UUID): Drug {
         logger.debug("Creating drug: {} for user: {}", createDTO.name, userId)
 
         val drug = Drug(
@@ -74,7 +75,7 @@ class DrugService(
             description = createDTO.description,
             medKit = medKit
         )
-        
+
         return drugRepository.save(drug)
     }
 
@@ -83,9 +84,9 @@ class DrugService(
         logger.debug("Updating drug: {}", drugId)
 
         val drug = findByIdForUserForUpdate(drugId, userId)
-        
+
         updateDTO.name?.let { drug.name = it }
-        updateDTO.quantity?.let { 
+        updateDTO.quantity?.let {
             val oldQuantity = drug.quantity
             drug.quantity = it
             // Handle quantity reduction - may need to adjust treatment plans
@@ -99,18 +100,17 @@ class DrugService(
         updateDTO.manufacturer?.let { drug.manufacturer = it }
         updateDTO.country?.let { drug.country = it }
         updateDTO.description?.let { drug.description = it }
-        
+
         return drugRepository.save(drug)
     }
 
     @Transactional
     fun delete(drugId: UUID, userId: UUID) {
         logger.debug("Deleting drug: {}", drugId)
-        
+
         val drug = findByIdForUser(drugId, userId)
         drugRepository.delete(drug)
     }
-
 
 
     @Transactional
@@ -128,7 +128,6 @@ class DrugService(
         return quantityReductionService.handleQuantityReduction(drug)
 
     }
-
 
 
     //    @Transactional(readOnly = true)

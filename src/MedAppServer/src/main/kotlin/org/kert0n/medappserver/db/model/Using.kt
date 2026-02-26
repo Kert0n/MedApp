@@ -19,30 +19,30 @@ class Using(
 
     @EmbeddedId
     var usingKey: UsingKey = UsingKey(),
-    
+
     @ManyToOne(fetch = FetchType.EAGER)
     @MapsId("userId")
     @JoinColumn(name = "user_id")
     var user: User,
-    
+
     @ManyToOne(fetch = FetchType.EAGER)
     @MapsId("drugId")
     @JoinColumn(name = "drug_id")
     var drug: Drug,
-    
+
     @NotNull
     @Column(name = "planned_amount", nullable = false)
     var plannedAmount: Double,
-    
+
     @NotNull
     @Column(name = "last_modified", nullable = false)
     var lastModified: Instant = Instant.now(),
-    
+
     @NotNull
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now()
 ) {
-    
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

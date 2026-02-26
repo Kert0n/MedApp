@@ -5,7 +5,10 @@ import org.kert0n.medappserver.db.model.parsed.VidalDrug
 import org.kert0n.medappserver.db.repository.VidalDrugRepository
 import org.mockito.kotlin.*
 import java.util.*
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class VidalDrugServiceTest {
 

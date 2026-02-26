@@ -9,38 +9,47 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.util.*
 
-interface MedKitRepository: JpaRepository<MedKit, UUID> {
+interface MedKitRepository : JpaRepository<MedKit, UUID> {
 
     @EntityGraph(attributePaths = ["drugs"])
-    @Query("""
+    @Query(
+        """
         SELECT mk FROM MedKit mk
         JOIN mk.users u
         WHERE u.id = :userId
-    """)
+    """
+    )
     fun findByUserId(@Param("userId") userId: UUID): List<MedKit>
 
-    @Query("""
+    @Query(
+        """
         SELECT mk FROM MedKit mk
         LEFT JOIN FETCH mk.drugs
         WHERE mk.id = :id
-    """)
+    """
+    )
     fun findByIdWithDrugs(@Param("id") id: UUID): MedKit?
 
-    @Query("""
+    @Query(
+        """
         SELECT DISTINCT mk FROM MedKit mk
         LEFT JOIN FETCH mk.users
         WHERE mk.id = :id
-    """)
+    """
+    )
     fun findByIdWithUsers(@Param("id") id: UUID): MedKit?
 
-    @Query("""
+    @Query(
+        """
         SELECT mk FROM MedKit mk
         JOIN mk.users u
         WHERE mk.id = :id AND u.id = :userId
-    """)
+    """
+    )
     fun findByIdAndUserId(@Param("id") id: UUID, @Param("userId") userId: UUID): MedKit?
 
-    @Query("""
+    @Query(
+        """
         SELECT new org.kert0n.medappserver.controller.MedKitSummaryDTO(
         mk.id, 
         COUNT(DISTINCT u), 
@@ -51,7 +60,8 @@ interface MedKitRepository: JpaRepository<MedKit, UUID> {
     LEFT JOIN mk.drugs d
     WHERE mk.id IN (SELECT m.id FROM MedKit m JOIN m.users us WHERE us.id = :userId)
     GROUP BY mk.id
-    """)
+    """
+    )
     fun findMedKitSummariesByUserId(@Param("userId") userId: UUID): Set<MedKitSummaryDTO>
 
     @EntityGraph(attributePaths = ["users", "drugs", "drugs.usings"])
