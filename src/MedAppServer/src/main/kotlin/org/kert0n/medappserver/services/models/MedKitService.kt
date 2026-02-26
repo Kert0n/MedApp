@@ -99,7 +99,7 @@ open class MedKitService(
 
     @Transactional
     fun removeUserFromMedKit(medKit: MedKit, user: User) {
-        logger.debug("Removing user {} from medkit {}, deleteAllDrugs: {}", user.id, medKit.id)
+        logger.debug("Removing user {} from medkit {}", user.id, medKit.id)
 
         user.medKits.remove(medKit)
         medKit.users.remove(user)

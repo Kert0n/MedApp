@@ -117,7 +117,7 @@ class DrugService(
     fun consumeDrug(drugId: UUID, quantity: Double, userId: UUID): Drug? {
         logger.debug("Consuming {} of drug {}", quantity, drugId)
 
-        val drug = findByIdForUser(drugId, userId)
+        val drug = findByIdForUserForUpdate(drugId, userId)
 
         if (quantity > drug.quantity) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient quantity available")
