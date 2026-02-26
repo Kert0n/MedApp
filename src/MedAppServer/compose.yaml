@@ -24,8 +24,6 @@ services:
 #    environment:
 #      - 'SPRING_PROFILES_ACTIVE=prod'
 #      - 'SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/medapp-server-db'
-#      - 'SPRING_DATASOURCE_USERNAME=myuser'
-#      - 'SPRING_DATASOURCE_PASSWORD=secret'
 #      - 'SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT=60000'
 #    ports:
 #      - "8080:8080"

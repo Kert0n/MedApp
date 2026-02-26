@@ -39,6 +39,7 @@ JWT по умолчанию живет 10 минут.
 
 ## Запуск с Docker Compose
 
+В [compose](compose.yaml) нужно убрать комментарий в medapp-server, затем стандартный запуск
 ```bash
 # Запуск всех сервисов
 docker-compose up -d
