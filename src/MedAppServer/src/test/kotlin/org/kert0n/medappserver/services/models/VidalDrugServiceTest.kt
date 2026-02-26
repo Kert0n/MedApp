@@ -1,9 +1,8 @@
-package org.kert0n.medappserver.services
+package org.kert0n.medappserver.services.models
 
 import org.junit.jupiter.api.Test
 import org.kert0n.medappserver.db.model.parsed.VidalDrug
 import org.kert0n.medappserver.db.repository.VidalDrugRepository
-import org.kert0n.medappserver.services.models.VidalDrugService
 import org.mockito.kotlin.*
 import java.util.*
 import kotlin.test.*
