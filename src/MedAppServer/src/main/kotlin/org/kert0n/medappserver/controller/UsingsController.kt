@@ -154,7 +154,7 @@
     @Schema(description = "Intake request")
     data class IntakeRequest(
         @NotNull
-        @DecimalMin("0.0")
+        @DecimalMin(value = "0.0", inclusive = false)
         @Schema(description = "Amount consumed", example = "1.0", minimum = "0")
         val quantityConsumed: Double
     )

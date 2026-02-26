@@ -101,9 +101,7 @@ class MedKitController(
     ])
     fun generateKeyToMedKit(
         authentication: Authentication,
-        @Parameter(description = "Medkit ID") @PathVariable medKitId: UUID,
-        @SwaggerRequestBody(description = "Share request")
-        @Valid @RequestBody request: AddUserRequest
+        @Parameter(description = "Medkit ID") @PathVariable medKitId: UUID
     ): String {
         logger.debug("POST /med-kit/{}/share by user {}", medKitId, authentication.userId)
         return medKitService.generateMedKitShareKey(medKitId, authentication.userId)

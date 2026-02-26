@@ -237,7 +237,7 @@ data class QuantityInfo(
 @Schema(description = "Request to consume a drug")
 data class ConsumeRequest(
     @NotNull
-    @DecimalMin("0.0")
+    @DecimalMin(value = "0.0", inclusive = false)
     @Schema(description = "Quantity to consume", example = "2.0", minimum = "0")
     val quantity: Double
 )

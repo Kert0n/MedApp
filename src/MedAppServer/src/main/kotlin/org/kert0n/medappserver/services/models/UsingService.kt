@@ -32,6 +32,7 @@ class UsingService(
         return usingRepository.findAllByUsingKeyUserId(userId)
     }
 
+    @Transactional
     fun deleteAllByUserIdInMedkit(userId: UUID, medKitId: UUID) {
         logger.debug("Deleting all usings for user: {}", userId)
         usingRepository.deleteByUserIdAndMedKitId(userId, medKitId)
@@ -90,8 +91,8 @@ class UsingService(
     fun updateTreatmentPlan(userId: UUID, drugId: UUID, updateDTO: UsingUpdateDTO): Using {
         logger.debug("Updating using for user {} and drug {}", userId, drugId)
 
-        // locking drug
-        val drug = drugService.findByIdForUserForUpdate(drugId, userId)
+        // Lock the drug row to prevent concurrent plan modifications
+        drugService.findByIdForUserForUpdate(drugId, userId)
         val using = findByUserAndDrug(userId, drugId)
         // Exclude the current plan when checking availability.
         val otherPlanned = using.drug.totalPlannedAmount - using.plannedAmount

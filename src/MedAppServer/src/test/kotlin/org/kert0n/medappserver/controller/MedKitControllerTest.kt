@@ -122,13 +122,9 @@ class MedKitControllerTest() {
         whenever(medKitService.findByIdForUser(medKitId, userId)).thenReturn(medKit)
         whenever(medKitService.generateMedKitShareKey(medKitId, userId)).thenReturn("share-key-123")
 
-        val addUserRequest = MedKitController.AddUserRequest(userId = UUID.randomUUID())
-
         mockMvc.perform(
             post("/med-kit/$medKitId/share")
                 .with(jwt().jwt { it.subject(userId.toString()) })
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(addUserRequest))
         )
             .andExpect(status().isOk)
             .andExpect(content().string("share-key-123"))
