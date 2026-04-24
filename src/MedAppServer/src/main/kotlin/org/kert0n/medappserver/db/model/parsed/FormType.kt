@@ -12,15 +12,13 @@ import java.util.*
         columnNames = ["name"]
     )]
 )
-open class FormType(
+class FormType(
     @Id
-    @Column(name = "id", nullable = false)
-    open var id: UUID = UUID.randomUUID(),
+    @Column(name = "id", nullable = false) var id: UUID = UUID.randomUUID(),
 
     @Size(max = 100)
     @NotNull
-    @Column(name = "name", nullable = false, length = 100)
-    open var name: String
+    @Column(name = "name", nullable = false, length = 100) var name: String
 
 ) {
     override fun equals(other: Any?): Boolean {

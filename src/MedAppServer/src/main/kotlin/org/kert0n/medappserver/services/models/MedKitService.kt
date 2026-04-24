@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException
 import java.util.*
 
 @Service
-open class MedKitService(
+class MedKitService(
     private val medKitRepository: MedKitRepository,
     private val securityService: SecurityService,
     private val logger: Logger = LoggerFactory.getLogger(MedKitService::class.java),

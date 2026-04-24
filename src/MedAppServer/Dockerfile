@@ -21,6 +21,7 @@ WORKDIR /app
 
 # Install wget for healthcheck
 RUN apk add --no-cache wget
+RUN apk add --no-cache curl
 
 # Create non-root user for security
 RUN addgroup -S spring && adduser -S spring -G spring

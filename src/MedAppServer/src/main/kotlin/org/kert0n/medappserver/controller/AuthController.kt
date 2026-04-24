@@ -56,10 +56,10 @@ class AuthController(
     fun register(
         request: HttpServletRequest,
         @Parameter(description = "Shared registration secret", required = true, example = "dev-secret")
-        @RequestParam secret: String
+        @RequestHeader("X-Registration-Token") token: String
     ): RegisterResponse {
         // Validate the shared secret first to avoid exposing rate-limit status to unauthorized callers.
-        if (secret != registrationSecret) {
+        if (token != registrationSecret) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid secret")
         }
         // Rate limit registration by IP address to reduce abuse without storing user PII.
@@ -90,5 +90,4 @@ class AuthController(
     )
     fun login(authentication: Authentication): String =
         securityService.generateToken(authentication.principal as User)
-
 }

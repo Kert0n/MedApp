@@ -1,12 +1,13 @@
 services:
   postgres:
-    image: 'postgres:latest'
+    image: 'postgres:18.3-trixie'
     environment:
       - 'POSTGRES_DB=medapp-server-db'
       - 'POSTGRES_PASSWORD=secret'
       - 'POSTGRES_USER=myuser'
     volumes:
       - postgres_data:/var/lib/postgresql
+      - ./init-scripts/dump.sql:/docker-entrypoint-initdb.d/dump.sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -15,9 +16,9 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - medapp-network
+      - med-app-network
 
-#  medapp-server:
+#  med-app-server:
 #    build:
 #      context: .
 #      dockerfile: Dockerfile
@@ -25,13 +26,13 @@ services:
 #      - 'SPRING_PROFILES_ACTIVE=prod'
 #      - 'SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/medapp-server-db'
 #      - 'SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT=60000'
-#    ports:
-#      - "8080:8080"
+#    expose:
+#      - "8080"
 #    depends_on:
 #      postgres:
 #        condition: service_healthy
 #    networks:
-#      - medapp-network
+#      - med-app-network
 #    healthcheck:
 #      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
 #      interval: 30s
@@ -39,10 +40,26 @@ services:
 #      retries: 3
 #      start_period: 40s
 #    restart: unless-stopped
+#
+#  caddy:
+#    image: caddy:2-alpine
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#    volumes:
+#      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+#      - caddy_data:/data       # тут Caddy хранит сертификаты
+#      - caddy_config:/config
+#    networks:
+#      - med-app-network
+#    restart: unless-stopped
+
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
 
 networks:
-  medapp-network:
+  med-app-network:
     driver: bridge

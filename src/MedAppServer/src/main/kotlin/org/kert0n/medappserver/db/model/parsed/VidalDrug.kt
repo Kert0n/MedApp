@@ -29,50 +29,39 @@ import java.util.*
             columnList = "manufacturer"
         )]
 )
-open class VidalDrug(
+class VidalDrug(
     @Id
-    @Column(name = "id", nullable = false)
-    open var id: UUID = UUID.randomUUID(),
+    @Column(name = "id", nullable = false) var id: UUID = UUID.randomUUID(),
 
     @Size(max = 300)
     @NotNull
-    @Column(name = "name", nullable = false, length = 300)
-    open var name: String,
+    @Column(name = "name", nullable = false, length = 300) var name: String,
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "form_type_id")
-    open var formType: FormType? = null,
+    @JoinColumn(name = "form_type_id") var formType: FormType? = null,
 
-    @Column(name = "quantity")
-    open var quantity: Int? = null,
+    @Column(name = "quantity") var quantity: Int? = null,
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "quantity_unit_id")
-    open var quantityUnit: QuantityUnit? = null,
+    @JoinColumn(name = "quantity_unit_id") var quantityUnit: QuantityUnit? = null,
 
     @Size(max = 300)
-    @Column(name = "active_substance", length = 300)
-    open var activeSubstance: String? = null,
+    @Column(name = "active_substance", length = 300) var activeSubstance: String? = null,
 
     @Size(max = 300)
-    @Column(name = "category", length = 300)
-    open var category: String? = null,
+    @Column(name = "category", length = 300) var category: String? = null,
 
     @Size(max = 300)
     @NotNull
-    @Column(name = "manufacturer", nullable = false, length = 300)
-    open var manufacturer: String,
+    @Column(name = "manufacturer", nullable = false, length = 300) var manufacturer: String,
 
     @Size(max = 100)
-    @Column(name = "country", length = 100)
-    open var country: String? = null,
+    @Column(name = "country", length = 100) var country: String? = null,
 
-    @Column(name = "description", length = Integer.MAX_VALUE)
-    open var description: String? = null,
+    @Column(name = "description", length = Integer.MAX_VALUE) var description: String? = null,
 
     @Column(name = "otc", nullable = false)
-    @NotNull
-    open var otc: Boolean
+    @NotNull var otc: Boolean
 
 
 ) {

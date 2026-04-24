@@ -75,15 +75,15 @@ gen-external-apklibs
 # Gradle and Maven with auto-import
 # When using Gradle or Maven with auto-import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using
-# auto-import.
-# .idea/artifacts
-# .idea/compiler.xml
-# .idea/jarRepositories.xml
-# .idea/modules.xml
-# .idea/*.iml
-# .idea/modules
-# *.iml
-# *.ipr
+ auto-import.
+ .idea/artifacts
+ .idea/compiler.xml
+ .idea/jarRepositories.xml
+ .idea/modules.xml
+ .idea/*.iml
+ .idea/modules
+ *.iml
+ *.ipr
 
 # CMake
 cmake-build-*/
@@ -180,10 +180,9 @@ fabric.properties
 hs_err_pid*
 replay_pid*
 
-/init-scripts/*
-/htmlReport
-application-prod.properties
-/src/MedAppServer/src/main/resources/certs/private.pem
-/src/MedAppServer/src/main/resources/certs/public.pem
+src/MedAppServer/src/main/resources/certs
+/init-scripts/cleaned-init.sql
 /src/main/resources/certs/private.pem
 /src/main/resources/certs/public.pem
+/init-scripts/dump.sql
+/src/main/resources/application-prod.properties

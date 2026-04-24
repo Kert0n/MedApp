@@ -1,0 +1,31 @@
+medapp.el-communication.ru {
+
+    reverse_proxy med-app-server:8080 {
+                                      # Передать реальный IP клиента в backend
+                                          header_up X-Real-IP {remote_host}
+                                          header_up X-Forwarded-For {remote_host}
+                                          header_up X-Forwarded-Proto {scheme}
+                                      }
+
+# Логи в stdout (подхватываются docker logs)
+    log {
+            output stdout
+            format console
+        }
+}
+
+#localhost {
+#
+#    reverse_proxy med-app-server:8080 {
+#        # Передать реальный IP клиента в backend
+#        header_up X-Real-IP {remote_host}
+#        header_up X-Forwarded-For {remote_host}
+#        header_up X-Forwarded-Proto {scheme}
+#    }
+#
+#    # Логи в stdout (подхватываются docker logs)
+#    log {
+#        output stdout
+#        format console
+#    }
+#}

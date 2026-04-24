@@ -23,7 +23,7 @@ import java.util.*
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-class UserControllerTest() {
+class UserControllerTest {
 
     @MockitoBean
     private lateinit var medKitDrugServices: MedKitDrugServices

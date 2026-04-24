@@ -12,15 +12,13 @@ import java.util.*
         columnNames = ["name"]
     )]
 )
-open class QuantityUnit(
+class QuantityUnit(
     @Id
-    @Column(name = "id", nullable = false)
-    open var id: UUID = UUID.randomUUID(),
+    @Column(name = "id", nullable = false) var id: UUID = UUID.randomUUID(),
 
     @Size(max = 30)
     @NotNull
-    @Column(name = "name", nullable = false, length = 30)
-    open var name: String
+    @Column(name = "name", nullable = false, length = 30) var name: String
 
 ) {
     override fun equals(other: Any?): Boolean {
