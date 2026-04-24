@@ -16,6 +16,7 @@ class CacheService(
     @Value($$"${medkit.share.termInMinutes}") private val medKitShareTerm: Long,
     @Value($$"${registration.timeout.InSeconds}") private val registrationTimeOut: Long,
 ) {
+    // Storage for medkit share tokens
     @Bean
     fun medKitTokenCache(): Cache<String, UUID> = Caffeine.newBuilder()
         .expireAfterWrite(medKitShareTerm.minutes)
@@ -23,6 +24,7 @@ class CacheService(
         .asCache()
 
     @Bean
+    // Storage for successful registration attempt
     fun successfulRegistrationsCache(): Cache<String, Int> = Caffeine.newBuilder()
         .expireAfterWrite(registrationTimeOut.seconds)
         .maximumSize(10_000)

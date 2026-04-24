@@ -53,7 +53,7 @@ class UsingService(
 
     @Transactional
     fun createTreatmentPlan(userId: UUID, createDTO: UsingCreateDTO): Using {
-        logger.debug("Creating using for user {} and drug {}", userId, createDTO.drugId)
+        logger.debug("Creating treatment for user {} and drug {}", userId, createDTO.drugId)
 
 
         val user = userService.findById(userId)

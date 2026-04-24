@@ -68,6 +68,7 @@ class SecurityConfiguration(
                     .anyRequest()
                     .authenticated()
             }
+            // BEWARE OF THIS! XCSS possible if code changes
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .exceptionHandling { configurer ->
                 configurer

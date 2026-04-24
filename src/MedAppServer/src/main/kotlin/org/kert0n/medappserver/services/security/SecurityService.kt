@@ -50,6 +50,7 @@ class SecurityService(
     fun validateRequest(ip: String): Boolean =
         (successfulRegistrationsCache.getOrNull(ip) ?: 0) <= registrationNumber
 
+    // Creates or increases successful registration attempt from IP
     fun registerIncrease(ip: String) {
         val current = successfulRegistrationsCache.getOrNull(ip)
         if (current == null) {

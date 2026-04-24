@@ -54,10 +54,11 @@ class MedKitDrugServices(
         return drugRepository.save(drug)
     }
 
-    fun findAllDrugsInMedkit(medKitId: UUID): List<Drug> = drugService.findAllByMedKit(medKitId)
+ //   fun findAllDrugsInMedkit(medKitId: UUID): List<Drug> = drugService.findAllByMedKit(medKitId)
 
     @Transactional
     fun removeUserFromMedKit(medKitId: UUID, userId: UUID) {
+        logger.debug("Removing user {} from MedKit {}",userId, medKitId)
         val medKit = medKitService.findByIdForUser(medKitId, userId)
         val user = userService.findById(userId)
         val drugs = drugRepository.findAllWithUsingsByMedKitId(medKitId)
@@ -76,22 +77,26 @@ class MedKitDrugServices(
         if (transferToMedKitId != null) {
             val targetMedKit = medKitService.findByIdForUser(transferToMedKitId, userId)
 
-            // 1. Get the IDs of everyone who has access to the new MedKit
+            // Get the IDs of everyone who has access to the new MedKit
             val usersWithAccess = targetMedKit.users.map { it.id }.toSet()
+            // Find which usings are affected
             val usingsToRemove = medKit.drugs.flatMap { drug ->
                 drug.usings.filter { it.user.id !in usersWithAccess }
             }.toSet()
+            // Removing
             medKit.drugs.forEach { drug ->
                 drug.usings.removeAll(usingsToRemove)
                 drug.medKit = targetMedKit
                 targetMedKit.drugs.add(drug)
             }
+            // Sync
             medKit.drugs.clear()
         }
+        // Sync
         medKit.users.forEach { user ->
             user.medKits.remove(medKit)
         }
-
+        // Sync
         medKitRepository.delete(medKit)
     }
 

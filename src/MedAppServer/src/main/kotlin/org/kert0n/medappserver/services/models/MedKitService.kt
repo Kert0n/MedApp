@@ -66,6 +66,7 @@ class MedKitService(
     }
 
     fun generateMedKitShareKey(medKitId: UUID, userId: UUID): String {
+        logger.debug("Sharing medkit $medKitId by user: $userId")
         // Checking access
         findByIdForUser(medKitId, userId)
         val key = securityService.generateKey(16)

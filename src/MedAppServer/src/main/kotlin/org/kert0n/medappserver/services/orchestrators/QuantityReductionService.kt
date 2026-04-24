@@ -27,7 +27,7 @@ class QuantityReductionService(
 
         logger.warn("Drug {} quantity {} is less than planned {}", drug.id, drug.quantity, drug.totalPlannedAmount)
 
-
+        // Reducing all fairly
         val reduceFactor = drug.quantity / drug.totalPlannedAmount
         handleUsingReduction(drug.id, reduceFactor)
         drug.totalPlannedAmount = drug.quantity
