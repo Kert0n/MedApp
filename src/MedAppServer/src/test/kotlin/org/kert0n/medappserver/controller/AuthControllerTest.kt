@@ -49,7 +49,7 @@ class AuthControllerTest {
     fun `POST register - returns 403 with wrong secret`() {
         mockMvc.perform(
             post("/auth/register")
-                .param("secret", "wrong-secret")
+                .header("X-Registration-Token", "wrong-secret")
         )
             .andExpect(status().isForbidden)
     }
@@ -64,7 +64,7 @@ class AuthControllerTest {
 
         mockMvc.perform(
             post("/auth/register")
-                .param("secret", "test-secret")
+                .header("X-Registration-Token", "test-secret")
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.key").value("generated-key"))
@@ -76,7 +76,7 @@ class AuthControllerTest {
 
         mockMvc.perform(
             post("/auth/register")
-                .param("secret", "test-secret")
+                .header("X-Registration-Token", "test-secret")
         )
             .andExpect(status().isGatewayTimeout)
     }
