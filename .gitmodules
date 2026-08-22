@@ -1,0 +1,9 @@
+[submodule "src/MedAppServer"]
+	path = src/MedAppServer
+	url = https://github.com/Kert0n/MedApp-Server.git
+[submodule "src/AndroidApp"]
+	path = src/AndroidApp
+	url = https://github.com/Kert0n/MedApp-Android.git
+[submodule "src/scrapper"]
+	path = src/scrapper
+	url = https://github.com/Kert0n/MedApp-Scrapper.git
