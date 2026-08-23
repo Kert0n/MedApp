@@ -38,6 +38,7 @@ git submodule update --remote src/MedAppServer
 | где | что |
 |---|---|
 | [docs/](docs) | документы курсовой: ТЗ, описание программы, текст программы |
+| [docs/plans/](docs/plans) | планы, по которым шёл рефакторинг: фичи с критериями, устройство, ход работ |
 | [MedApp-Server/README](https://github.com/Kert0n/MedApp-Server#readme) | что умеет сервер, как запустить, перечень эндпоинтов |
 | [MedApp-Server/ARCHITECTURE.md](https://github.com/Kert0n/MedApp-Server/blob/main/ARCHITECTURE.md) | модель, слои, доступ, конкурентность, синхронизация |
 
